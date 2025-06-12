@@ -378,8 +378,9 @@ def clear_orders(symbol: str = "tPNKUSD"):
         print(f"\n❌ Failed to cancel orders in bulk: {e}")
 
 def cancel_orders_by_criteria(size: Optional[float] = None, direction: Optional[str] = None, 
-                             symbol: Optional[str] = None, dry_run: bool = False):
-    """Cancel orders matching specific criteria (size, direction, symbol)"""
+                             symbol: Optional[str] = None, price_below: Optional[float] = None,
+                             price_above: Optional[float] = None, dry_run: bool = False):
+    """Cancel orders matching specific criteria (size, direction, symbol, price thresholds)"""
     
     # Build description of what we're looking for
     criteria_parts = []
@@ -389,6 +390,10 @@ def cancel_orders_by_criteria(size: Optional[float] = None, direction: Optional[
         criteria_parts.append(f"direction {direction.upper()}")
     if symbol:
         criteria_parts.append(f"symbol {symbol}")
+    if price_below is not None:
+        criteria_parts.append(f"price below ${price_below:.6f}")
+    if price_above is not None:
+        criteria_parts.append(f"price above ${price_above:.6f}")
     
     criteria_desc = " and ".join(criteria_parts) if criteria_parts else "all criteria"
     
@@ -420,6 +425,23 @@ def cancel_orders_by_criteria(size: Optional[float] = None, direction: Optional[
             order_direction = "buy" if amount > 0 else "sell"
             if order_direction != direction.lower():
                 matches = False
+        
+        # Check price criteria (skip market orders that have no price)
+        if matches and (price_below is not None or price_above is not None):
+            if order.price is None:
+                # This is a market order - skip price filtering
+                print(f"   Skipping market order {order.id} (no price to compare)")
+                matches = False
+            else:
+                order_price = float(order.price)
+                
+                # Check price below threshold
+                if price_below is not None and order_price >= price_below:
+                    matches = False
+                
+                # Check price above threshold
+                if price_above is not None and order_price <= price_above:
+                    matches = False
         
         if matches:
             matching_orders.append(order)
@@ -1294,11 +1316,13 @@ def main():
     parser_clear = subparsers.add_parser("clear", help="Clear all orders on PNK-USD pair")
     
     # Cancel subcommand
-    parser_cancel = subparsers.add_parser("cancel", help="Cancel orders by ID or by criteria (size, direction)")
-    parser_cancel.add_argument("order_id", type=int, nargs='?', help="Order ID to cancel (required if not using --size)")
+    parser_cancel = subparsers.add_parser("cancel", help="Cancel orders by ID or by criteria (size, direction, price)")
+    parser_cancel.add_argument("order_id", type=int, nargs='?', help="Order ID to cancel (required if not using criteria filters)")
     parser_cancel.add_argument("--size", type=float, help="Cancel all orders with this size")
     parser_cancel.add_argument("--direction", choices=['buy', 'sell'], help="Filter by order direction (buy/sell)")
     parser_cancel.add_argument("--symbol", default="tPNKUSD", help="Filter by symbol (default: tPNKUSD)")
+    parser_cancel.add_argument("--price-below", type=float, help="Cancel orders with price below this value")
+    parser_cancel.add_argument("--price-above", type=float, help="Cancel orders with price above this value")
     parser_cancel.add_argument("--dry-run", action="store_true", help="Show matching orders without cancelling them")
     
     # List subcommand
@@ -1360,11 +1384,13 @@ def main():
             if args.order_id:
                 # Cancel by order ID
                 cancel_single_order(args.order_id)
-            elif args.size is not None or args.direction or args.symbol:
+            elif (args.size is not None or args.direction or args.symbol != "tPNKUSD" or 
+                  args.price_below is not None or args.price_above is not None):
                 # Cancel by criteria
-                cancel_orders_by_criteria(args.size, args.direction, args.symbol, args.dry_run)
+                cancel_orders_by_criteria(args.size, args.direction, args.symbol, 
+                                        args.price_below, args.price_above, args.dry_run)
             else:
-                print("❌ Error: Must provide either order_id or criteria (--size, --direction, --symbol)")
+                print("❌ Error: Must provide either order_id or criteria (--size, --direction, --symbol, --price-below, --price-above)")
                 print("Use 'python3 BFXCLI.py cancel --help' for usage information")
         elif args.command == "list":
             list_orders(args.symbol)
