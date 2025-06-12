@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Never make a file that exceeds 750 LoC. Apply separation of concerns principle and divide into multiple files.

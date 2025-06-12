@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitfinex-maker-kit"
+version = "1.1.0"
+authors = [
+    {name = "Maker-Kit Developer"},
+]
+description = "A powerful command-line interface for automated trading and market making on Bitfinex"
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+    "bitfinex-api-py>=3.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-username/maker-kit"
+"Bug Tracker" = "https://github.com/your-username/maker-kit/issues"
+
+[project.scripts]
+maker-kit = "maker_kit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["maker_kit*"] 

@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always make the program portable. However it runs locally, should run the same elsewhere.

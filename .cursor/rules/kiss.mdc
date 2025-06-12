@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Keep the codebase lean and concise. Make it easy to read and understand for humans. Remove unnecessary code or repeated code. Have a proper codebase structure. Don't exit without tidying up. 

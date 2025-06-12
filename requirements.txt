@@ -1,0 +1,12 @@
+# Development installation
+# Use this for local development: pip install -e .
+# 
+# Main dependencies are declared in pyproject.toml
+# This file can be used for additional development dependencies if needed
+
+# Bitfinex CLI Tool Dependencies
+
+# Bitfinex API Python library
+bitfinex-api-py>=3.0.0
+
+# No other external dependencies required - tool uses only Python standard library 
