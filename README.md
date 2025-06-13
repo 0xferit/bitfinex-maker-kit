@@ -1,6 +1,6 @@
 # Bitfinex CLI Tool (Maker-Kit)
 
-A command-line interface for automated trading and market making on Bitfinex with **guaranteed POST_ONLY orders**.
+A command-line interface tool for market making on Bitfinex.
 
 ## Design Principles
 

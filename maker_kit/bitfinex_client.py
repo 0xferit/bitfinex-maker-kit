@@ -10,7 +10,7 @@ from typing import Optional, List, Union
 from bfxapi import Client, WSS_HOST
 from bfxapi.types import Order, Notification
 
-from ..utilities.constants import POST_ONLY_FLAG, OrderSide, OrderType, OrderSubmissionError
+from .utilities.constants import POST_ONLY_FLAG, OrderSide, OrderType, OrderSubmissionError
 
 # Re-export types for application use (API boundary isolation)
 __all__ = ['BitfinexClientWrapper', 'create_wrapper_client', 'Order', 'Notification']

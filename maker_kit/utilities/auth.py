@@ -4,7 +4,7 @@ Authentication and API client management for Bitfinex CLI.
 
 import os
 import sys
-from ..exchanges.bitfinex_client import create_wrapper_client
+from ..bitfinex_client import create_wrapper_client
 
 
 def get_credentials():

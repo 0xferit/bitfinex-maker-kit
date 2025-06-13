@@ -6,7 +6,7 @@ market data, constants, API client wrapper, and general utilities.
 """
 
 from .auth import create_client, test_api_connection, test_websocket_connection, test_comprehensive, get_credentials
-from ..exchanges.bitfinex_client import create_wrapper_client, Order, Notification
+from ..bitfinex_client import create_wrapper_client, Order, Notification
 from .constants import (
     DEFAULT_SYMBOL, DEFAULT_LEVELS, DEFAULT_SPREAD_PCT, DEFAULT_ORDER_SIZE,
     OrderSide, OrderType, ValidationError, OrderSubmissionError

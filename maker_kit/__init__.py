@@ -17,16 +17,14 @@ __description__ = "Bitfinex CLI Tool for Automated Trading and Market Making"
 
 # Core modules
 from . import utilities
-from . import exchanges
 from . import cli
 
 # Re-export commonly used types from wrapper (maintains API boundary)
-from .exchanges.bitfinex_client import Order, Notification
+from .bitfinex_client import Order, Notification
 from .utilities.constants import OrderSide, OrderType, ValidationError, OrderSubmissionError
 
 __all__ = [
     'utilities',
-    'exchanges',
     'cli',
     'Order',
     'Notification',

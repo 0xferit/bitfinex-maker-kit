@@ -6,7 +6,7 @@ import asyncio
 import signal
 import sys
 from typing import Optional
-from ..exchanges.bitfinex_client import Order, Notification
+from ..bitfinex_client import Order, Notification
 from ..utilities.auth import create_client
 from ..utilities.market_data import validate_center_price, resolve_center_price
 from ..utilities.orders import submit_order
