@@ -2,6 +2,19 @@
 
 A command-line interface for automated trading and market making on Bitfinex with **guaranteed POST_ONLY orders**.
 
+## Design Principles
+
+- **Safety**: Operates without causing harm or unacceptable risk
+- **Reliability**: Consistently correct behavior  
+- **Maintainability**: Easy to modify, update, and debug
+
+## Design Choices
+
+- **Single Exchange**: Bitfinex only, eliminating multi-exchange complexity
+- **Single Strategy**: Market making only, eliminating multi-strategy complexity  
+- **POST_ONLY Orders**: Taker orders prohibited for maximum safety
+
+
 ## 🛠️ Installation
 
 ```bash
