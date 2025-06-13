@@ -223,9 +223,9 @@ class BitfinexClientWrapper:
         if new_price is not None and new_price <= 0:
             raise ValueError(f"Calculated new price is not positive: {new_price}")
         
-        # Default: Try WebSocket atomic update first (safer)
+        # Default: Use WebSocket atomic update only (safer)
         if not use_cancel_recreate:
-            # Only use WebSocket atomic update - no fallback to cancel-and-recreate
+            # Only use WebSocket atomic update - never fallback to cancel-and-recreate
             return self._update_order_websocket(order_id, new_price, new_amount, is_sell_order)
         else:
             # Explicit cancel-and-recreate (riskier but requested)
@@ -233,200 +233,134 @@ class BitfinexClientWrapper:
             return self._update_order_cancel_recreate(target_order, new_price, new_amount, is_sell_order)
     
     def _update_order_websocket(self, order_id: int, price: float, amount: float, is_sell_order: bool):
-        """Attempt atomic update via WebSocket"""
+        """Attempt atomic update via REST API or WebSocket"""
         # Convert amount based on order side
         bitfinex_amount = -amount if is_sell_order else amount
         
-        update_data = {
-            "id": order_id,
-            "price": str(price),
-            "amount": str(bitfinex_amount)
-        }
-        
-        # Check if WebSocket connection is available
-        if not hasattr(self.client, 'wss'):
-            raise OrderSubmissionError("WebSocket client not available")
+        print(f"   🔄 Sending atomic order update for order {order_id}")
+        print(f"      New price: ${price:.6f}, New amount: {amount}")
         
         try:
-            import json
-            import time
-            import asyncio
-            import threading
-            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+            # First try REST API update_order method (most reliable)
+            if hasattr(self.client.rest.auth, 'update_order'):
+                try:
+                    print(f"   📡 Using REST API atomic update...")
+                    result = self.client.rest.auth.update_order(
+                        id=order_id,
+                        price=price,
+                        amount=bitfinex_amount
+                    )
+                    print(f"   ✅ REST API update completed successfully")
+                    return {
+                        "method": "rest_atomic",
+                        "status": "success",
+                        "order_id": order_id,
+                        "result": result,
+                        "message": f"Order {order_id} updated via REST API"
+                    }
+                except Exception as rest_error:
+                    print(f"   ⚠️  REST API update failed: {rest_error}")
+                    # Continue to try WebSocket as fallback
+            
+            # Fallback to WebSocket if REST API not available or failed
+            if not hasattr(self.client, 'wss'):
+                raise OrderSubmissionError("Neither REST update_order nor WebSocket client available")
             
             wss = self.client.wss
             
-            # Check if WebSocket is already connected
-            is_connected = False
-            if hasattr(wss, 'is_open') and callable(wss.is_open):
-                is_connected = wss.is_open()
-            elif hasattr(wss, '_connected') and wss._connected:
-                is_connected = True
-            elif hasattr(wss, 'connected') and wss.connected:
-                is_connected = True
-            
-            # If already connected, send update directly
-            if is_connected:
-                print(f"   🔄 Sending atomic WebSocket update for order {order_id}")
-                print(f"      New price: ${price:.6f}, New amount: {amount}")
-                
-                # Format the WebSocket message for order update
-                update_message = [0, 'ou', None, update_data]
-                
+            # Try using the library's built-in WebSocket update method
+            if hasattr(wss, 'update_order'):
                 try:
-                    wss.send(json.dumps(update_message))
-                    print(f"   ⏳ Waiting for update confirmation...")
-                    time.sleep(2)
-                    
+                    print(f"   📡 Using WebSocket API atomic update...")
+                    result = wss.update_order(
+                        id=order_id,
+                        price=str(price),
+                        amount=str(bitfinex_amount)
+                    )
+                    print(f"   ✅ WebSocket API update completed successfully")
                     return {
                         "method": "websocket_atomic",
-                        "status": "sent",
+                        "status": "success",
                         "order_id": order_id,
-                        "update_data": update_data,
-                        "message": f"Atomic update sent for order {order_id} via WebSocket"
+                        "result": result,
+                        "message": f"Order {order_id} updated via WebSocket API"
                     }
-                except Exception as send_error:
-                    raise OrderSubmissionError(f"WebSocket send failed: {send_error}")
+                except Exception as ws_error:
+                    print(f"   ⚠️  WebSocket API update failed: {ws_error}")
+                    # Continue to try direct WebSocket message
             
-            # Need to establish temporary connection
-            print(f"   🔌 Establishing temporary WebSocket connection for atomic update...")
+            # Final fallback: Direct WebSocket message (requires active connection)
+            print(f"   📡 Trying direct WebSocket message...")
             
-            # Use a threading approach to handle WebSocket with timeout
-            result_container = {"result": None, "error": None, "authenticated": False, "update_sent": False}
+            # Check if we have an active WebSocket connection
+            is_connected = False
+            try:
+                if hasattr(wss, 'is_open') and callable(wss.is_open):
+                    is_connected = wss.is_open()
+                elif hasattr(wss, '_connected'):
+                    is_connected = bool(wss._connected)
+                elif hasattr(wss, 'connected'):
+                    is_connected = bool(wss.connected)
+            except Exception:
+                is_connected = False
             
-            def websocket_worker():
-                """Worker function to handle WebSocket in separate thread"""
-                try:
-                    # Create new event loop for this thread
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    async def handle_websocket():
-                        """Async function to handle WebSocket connection and update"""
-                        
-                        # Set up event handlers
-                        @wss.on("authenticated")
-                        async def on_authenticated(data):
-                            print(f"   ✅ WebSocket authenticated - sending update...")
-                            result_container["authenticated"] = True
-                            
-                            # Send the update message
-                            update_message = [0, 'ou', None, update_data]
-                            try:
-                                wss.send(json.dumps(update_message))
-                                result_container["update_sent"] = True
-                                print(f"   🔄 Atomic update sent for order {order_id}")
-                                
-                                # Wait a moment for processing
-                                await asyncio.sleep(2)
-                                
-                                result_container["result"] = {
-                                    "method": "websocket_atomic",
-                                    "status": "sent",
-                                    "order_id": order_id,
-                                    "update_data": update_data,
-                                    "message": f"Atomic update sent for order {order_id} via WebSocket"
-                                }
-                            except Exception as send_error:
-                                result_container["error"] = f"WebSocket send failed: {send_error}"
-                        
-                        @wss.on("on-req-notification")
-                        def on_notification(notification):
-                            # Handle order update notifications and errors
-                            if hasattr(notification, 'status') and notification.status == "ERROR":
-                                result_container["error"] = f"Order update error: {notification.text}"
-                            elif hasattr(notification, 'text') and "error" in str(notification.text).lower():
-                                result_container["error"] = f"WebSocket notification error: {notification.text}"
-                        
-                        try:
-                            # Start WebSocket connection
-                            print(f"   ⏳ Connecting and authenticating...")
-                            await wss.start()
-                            
-                            # Wait for authentication and update to complete
-                            max_wait_time = 20  # 20 seconds total timeout
-                            wait_time = 0
-                            
-                            while wait_time < max_wait_time:
-                                await asyncio.sleep(0.5)
-                                wait_time += 0.5
-                                
-                                # Check if we got an error
-                                if result_container["error"]:
-                                    break
-                                    
-                                # Check if update was sent successfully
-                                if result_container["update_sent"] and result_container["result"]:
-                                    break
-                                    
-                                # Check if we're stuck waiting for authentication
-                                if wait_time > 10 and not result_container["authenticated"]:
-                                    result_container["error"] = "WebSocket authentication timed out"
-                                    break
-                            
-                            # If we exit the loop without completing, it's a timeout
-                            if not result_container["error"] and not result_container["result"]:
-                                if not result_container["authenticated"]:
-                                    result_container["error"] = "WebSocket authentication timed out"
-                                elif not result_container["update_sent"]:
-                                    result_container["error"] = "WebSocket update was not sent"
-                                else:
-                                    result_container["error"] = "WebSocket operation timed out"
-                            
-                        except Exception as ws_error:
-                            result_container["error"] = f"WebSocket connection error: {ws_error}"
-                        finally:
-                            # Clean up - close WebSocket
-                            try:
-                                await wss.close()
-                                print(f"   🔌 WebSocket connection closed")
-                            except Exception:
-                                pass  # Ignore close errors
-                    
-                    # Run the async handler
-                    loop.run_until_complete(handle_websocket())
-                    
-                except Exception as e:
-                    result_container["error"] = f"WebSocket worker error: {e}"
-                finally:
-                    try:
-                        loop.close()
-                    except Exception:
-                        pass
+            if not is_connected:
+                raise OrderSubmissionError("No WebSocket connection available for direct message")
             
-            # Run WebSocket worker in thread with timeout
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(websocket_worker)
-                
-                try:
-                    # Wait for completion with timeout
-                    future.result(timeout=25)  # 25 second total timeout
-                    
-                    # Check results
-                    if result_container["error"]:
-                        raise OrderSubmissionError(result_container["error"])
-                    elif result_container["result"]:
-                        return result_container["result"]
-                    else:
-                        raise OrderSubmissionError("WebSocket update completed but no result received")
-                        
-                except FutureTimeoutError:
-                    raise OrderSubmissionError("WebSocket operation timed out (25s) - connection or authentication too slow")
+            # Send the update message directly to existing connection
+            import json
+            import time
+            
+            update_data = {
+                "id": order_id,
+                "price": str(price),
+                "amount": str(bitfinex_amount)
+            }
+            
+            update_message = [0, 'ou', None, update_data]
+            
+            if hasattr(wss, 'send'):
+                wss.send(json.dumps(update_message))
+            elif hasattr(wss, '_send_message'):
+                wss._send_message(update_message)
+            else:
+                raise OrderSubmissionError("WebSocket send method not available")
+            
+            print(f"   🔄 Direct WebSocket message sent")
+            print(f"   ⏳ Waiting for confirmation...")
+            
+            # Brief wait for processing
+            time.sleep(2)
+            
+            return {
+                "method": "websocket_direct",
+                "status": "sent",
+                "order_id": order_id,
+                "update_data": update_data,
+                "message": f"Order {order_id} update message sent via direct WebSocket"
+            }
             
         except Exception as e:
-            # Provide more specific error information
-            error_msg = f"WebSocket atomic update failed: {e}"
-            if "timed out" in str(e).lower():
-                error_msg += " (WebSocket connection/authentication too slow)"
-            elif "authentication" in str(e).lower():
-                error_msg += " (WebSocket authentication failed)"
-            elif "connection" in str(e).lower():
-                error_msg += " (WebSocket connection issue)"
-            elif "send" in str(e).lower():
-                error_msg += " (WebSocket send failed)"
-            elif "rate" in str(e).lower() or "limit" in str(e).lower():
-                error_msg += " (WebSocket rate limited - try again in 15 seconds)"
-            raise OrderSubmissionError(error_msg) from e
+            # Provide clear error message
+            error_msg = str(e)
+            
+            if "not available" in error_msg.lower() or "connection" in error_msg.lower():
+                raise OrderSubmissionError(
+                    f"Atomic update failed: {e}\n"
+                    "   💡 This may be due to API limitations or connection issues\n"
+                    "   💡 Suggestion: Use --use-cancel-recreate flag as an alternative"
+                )
+            elif "rate" in error_msg.lower() or "limit" in error_msg.lower():
+                raise OrderSubmissionError(
+                    f"Atomic update failed: {e}\n"
+                    "   💡 Rate limited - wait 15 seconds and try again\n"
+                    "   💡 Or use --use-cancel-recreate flag as an alternative"
+                )
+            else:
+                raise OrderSubmissionError(
+                    f"Atomic update failed: {e}\n"
+                    "   💡 Suggestion: Use --use-cancel-recreate flag as an alternative"
+                )
     
     def _update_order_cancel_recreate(self, original_order, new_price: float, new_amount: float, is_sell_order: bool):
         """Update order by cancelling and recreating it"""

@@ -203,7 +203,7 @@ def update_orders_by_criteria(filter_size: Optional[float] = None, filter_direct
         # Add delay between updates to prevent nonce issues (except for first order)
         if i > 0:
             import time
-            delay = 1.5  # 1.5 seconds between orders
+            delay = 0.2  # 0.2 seconds between orders
             print(f"   ⏳ Waiting {delay}s before next update to prevent nonce issues...")
             time.sleep(delay)
         
@@ -247,8 +247,8 @@ def update_command(order_id: Optional[int] = None, price: Optional[float] = None
     
     # Show information about update methods if not using cancel-recreate
     if not use_cancel_recreate:
-        print_info("📡 Using WebSocket atomic updates (safer - preserves POST_ONLY)")
-        print("   WebSocket connection will be established automatically if needed")
+        print_info("📡 Using atomic updates (safer - preserves POST_ONLY)")
+        print("   Uses REST API or WebSocket for reliable atomic updates")
         print("   For cancel-and-recreate method (riskier), use --use-cancel-recreate flag")
         print()
     else:
