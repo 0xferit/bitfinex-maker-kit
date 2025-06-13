@@ -1,15 +1,16 @@
 """
-Auto market maker implementation for Bitfinex CLI.
+Auto-market-make command - Automated market making with dynamic center adjustment.
 """
 
 import asyncio
 import signal
 import sys
 from typing import Optional
-from .bitfinex_client import Order, Notification
-from .auth import create_client
-from .market_data import validate_center_price
-from .orders import list_orders, submit_order
+from ..exchanges.bitfinex_client import Order, Notification
+from ..utilities.auth import create_client
+from ..utilities.market_data import validate_center_price, resolve_center_price
+from ..utilities.orders import submit_order
+from ..utilities.constants import DEFAULT_SYMBOL, DEFAULT_LEVELS, DEFAULT_SPREAD_PCT, DEFAULT_ORDER_SIZE
 
 
 class AutoMarketMaker:
@@ -17,7 +18,7 @@ class AutoMarketMaker:
     
     def __init__(self, symbol: str, center_price: float, levels: int, spread_pct: float, 
                  size: float, side_filter: Optional[str] = None, test_only: bool = False,
-                 ignore_validation: bool = False):
+                 ignore_validation: bool = False, yes: bool = False):
         self.symbol = symbol
         self.initial_center = center_price
         self.current_center = center_price
@@ -27,6 +28,7 @@ class AutoMarketMaker:
         self.side_filter = side_filter
         self.test_only = test_only
         self.ignore_validation = ignore_validation
+        self.yes = yes
         self.active_orders = {}  # order_id -> order_info
         self.running = False
         self.replenish_task = None  # For the periodic replenishment task
@@ -190,9 +192,8 @@ class AutoMarketMaker:
         
         try:
             # Get current active orders from exchange
-            current_orders = list_orders(self.symbol)
-            if current_orders is None:
-                current_orders = []
+            all_orders = self.client.get_orders()
+            current_orders = [order for order in all_orders if order.symbol == self.symbol]
             
             # Create set of currently active order IDs on exchange
             active_order_ids = {order.id for order in current_orders}
@@ -408,7 +409,7 @@ class AutoMarketMaker:
         print(f"   • Replenish cancelled orders every 30 seconds")
         print(f"   • Continue running until Ctrl+C")
         
-        if not self.test_only:
+        if not self.test_only and not self.yes:
             response = input(f"\nDo you want to start auto-market-making? (y/N): ")
             if response.lower() != 'y':
                 print("❌ Auto market maker cancelled")
@@ -472,11 +473,11 @@ class AutoMarketMaker:
 
 async def auto_market_make(symbol: str, center_price: float, levels: int, spread_pct: float, 
                           size: float, side_filter: Optional[str] = None, test_only: bool = False,
-                          ignore_validation: bool = False):
+                          ignore_validation: bool = False, yes: bool = False):
     """Start auto market maker with dynamic center adjustment"""
     
     try:
-        amm = AutoMarketMaker(symbol, center_price, levels, spread_pct, size, side_filter, test_only, ignore_validation)
+        amm = AutoMarketMaker(symbol, center_price, levels, spread_pct, size, side_filter, test_only, ignore_validation, yes)
     except ValueError as e:
         print(f"❌ Failed to start auto market maker: {e}")
         return
@@ -491,3 +492,25 @@ async def auto_market_make(symbol: str, center_price: float, levels: int, spread
     signal.signal(signal.SIGTERM, signal_handler)
     
     await amm.start() 
+
+
+def auto_market_make_command(symbol: str = DEFAULT_SYMBOL, center: str = None, 
+                           levels: int = DEFAULT_LEVELS, spread: float = DEFAULT_SPREAD_PCT, 
+                           size: float = DEFAULT_ORDER_SIZE, buy_only: bool = False, 
+                           sell_only: bool = False, test_only: bool = False,
+                           ignore_validation: bool = False, yes: bool = False):
+    """Automated market making with dynamic center adjustment"""
+    
+    # Determine side filter
+    side_filter = None
+    if buy_only:
+        side_filter = "buy"
+    elif sell_only:
+        side_filter = "sell"
+    
+    # Resolve center price from string input
+    center_price = resolve_center_price(symbol, center)
+    if center_price is None:
+        return  # Error already printed by resolve_center_price
+    
+    return asyncio.run(auto_market_make(symbol, center_price, levels, spread, size, side_filter, test_only, ignore_validation, yes))

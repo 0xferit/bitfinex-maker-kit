@@ -3,17 +3,14 @@ Command-line interface for Bitfinex CLI tool.
 """
 
 import argparse
-import asyncio
 from typing import Optional
 
-from .constants import DEFAULT_SYMBOL, DEFAULT_LEVELS, DEFAULT_SPREAD_PCT, DEFAULT_ORDER_SIZE
-from .auth import test_api_connection
-from .wallet import get_wallets
-from .orders import list_orders, cancel_single_order, clear_orders, cancel_orders_by_criteria, put_order
-from .market_making import market_make, fill_spread
-from .market_data import suggest_price_centers, resolve_center_price
-from .auto_market_maker import auto_market_make
-from .utils import print_error
+from .utilities.constants import DEFAULT_SYMBOL, DEFAULT_LEVELS, DEFAULT_SPREAD_PCT, DEFAULT_ORDER_SIZE
+from .commands import (
+    test_command, wallet_command, clear_command, cancel_command, put_command, update_command,
+    list_command, market_make_command, auto_market_make_command, fill_spread_command
+)
+from .utilities.console import print_error
 
 
 def main():
@@ -21,7 +18,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Test subcommand
-    parser_test = subparsers.add_parser("test", help="Test API connection")
+    parser_test = subparsers.add_parser("test", help="Test REST API and WebSocket connections")
     
     # Wallet subcommand
     parser_wallet = subparsers.add_parser("wallet", help="Show wallet balances")
@@ -38,6 +35,7 @@ def main():
     parser_cancel.add_argument("--price-below", type=float, help="Cancel orders with price below this value")
     parser_cancel.add_argument("--price-above", type=float, help="Cancel orders with price above this value")
     parser_cancel.add_argument("--dry-run", action="store_true", help="Show matching orders without cancelling them")
+    parser_cancel.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     
     # Put subcommand
     parser_put = subparsers.add_parser("put", help="Place a single order")
@@ -46,6 +44,25 @@ def main():
     parser_put.add_argument("price", nargs='?', help="Order price (omit for market order)")
     parser_put.add_argument("--symbol", default=DEFAULT_SYMBOL, help=f"Trading symbol (default: {DEFAULT_SYMBOL})")
     parser_put.add_argument("--dry-run", action="store_true", help="Show order details without placing it")
+    parser_put.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
+    
+    # Update subcommand
+    parser_update = subparsers.add_parser("update", help="Update existing orders atomically")
+    parser_update.add_argument("order_id", type=int, nargs='?', help="Order ID to update (required if not using filter criteria)")
+    
+    # Update parameters
+    parser_update.add_argument("--price", type=float, help="New price for the order(s)")
+    parser_update.add_argument("--amount", type=float, help="New absolute amount for the order(s)")
+    parser_update.add_argument("--delta", type=float, help="Amount to add/subtract from current amount (use + or - values)")
+    
+    # Filter criteria for bulk updates
+    parser_update.add_argument("--filter-size", type=float, help="Update all orders with this size")
+    parser_update.add_argument("--filter-direction", choices=['buy', 'sell'], help="Filter by order direction (buy/sell)")
+    parser_update.add_argument("--filter-symbol", default=None, help="Filter by symbol (e.g., tPNKUSD)")
+    
+    parser_update.add_argument("--dry-run", action="store_true", help="Show update details without modifying orders")
+    parser_update.add_argument("--use-cancel-recreate", action="store_true", help="Use cancel-and-recreate method instead of WebSocket atomic update (riskier)")
+    parser_update.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     
     # List subcommand
     parser_list = subparsers.add_parser("list", help="List active orders")
@@ -61,6 +78,7 @@ def main():
     parser_mm.add_argument("--size", type=float, default=DEFAULT_ORDER_SIZE, help=f"Order size for each level (default: {DEFAULT_ORDER_SIZE})")
     parser_mm.add_argument("--dry-run", action="store_true", help="Show orders without placing them")
     parser_mm.add_argument("--ignore-validation", action="store_true", help="Ignore center price validation (allows orders outside bid-ask spread)")
+    parser_mm.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     
     # Mutually exclusive group for side selection
     side_group = parser_mm.add_mutually_exclusive_group()
@@ -76,6 +94,7 @@ def main():
     parser_amm.add_argument("--size", type=float, default=DEFAULT_ORDER_SIZE, help=f"Order size for each level (default: {DEFAULT_ORDER_SIZE})")
     parser_amm.add_argument("--test-only", action="store_true", help="Place orders and exit without WebSocket monitoring (for testing)")
     parser_amm.add_argument("--ignore-validation", action="store_true", help="Ignore center price validation (allows orders outside bid-ask spread)")
+    parser_amm.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     
     # Mutually exclusive group for side selection in auto market maker
     auto_side_group = parser_amm.add_mutually_exclusive_group()
@@ -89,90 +108,42 @@ def main():
     parser_fill.add_argument("--size", type=float, required=True, help="Order size for each fill order")
     parser_fill.add_argument("--center", help="Center price for orders (numeric price or 'mid-range' to use mid-price)")
     parser_fill.add_argument("--dry-run", action="store_true", help="Show orders without placing them")
+    parser_fill.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     
     args = parser.parse_args()
     
-    # Most commands are now synchronous, only async ones need special handling
+    # Route commands to their respective functions
     def run_command():
         if args.command == "test":
-            test_api_connection()
+            test_command()
         elif args.command == "wallet":
-            get_wallets()
+            wallet_command()
         elif args.command == "clear":
-            clear_orders()
+            clear_command()
         elif args.command == "cancel":
-            if args.order_id:
-                # Cancel by order ID
-                cancel_single_order(args.order_id)
-            elif (args.size is not None or args.direction or args.symbol != DEFAULT_SYMBOL or 
-                  args.price_below is not None or args.price_above is not None):
-                # Cancel by criteria
-                cancel_orders_by_criteria(args.size, args.direction, args.symbol, 
-                                        args.price_below, args.price_above, args.dry_run)
-            else:
-                print_error("Must provide either order_id or criteria (--size, --direction, --symbol, --price-below, --price-above)")
-                print("Use 'maker-kit cancel --help' for usage information")
+            cancel_command(args.order_id, args.size, args.direction, args.symbol, 
+                         args.price_below, args.price_above, args.dry_run, args.yes)
         elif args.command == "put":
-            put_order(args.symbol, args.side, args.amount, args.price, args.dry_run)
+            put_command(args.side, args.amount, args.price, args.symbol, args.dry_run, args.yes)
+        elif args.command == "update":
+            update_command(args.order_id, args.price, args.amount, args.delta,
+                         args.filter_size, args.filter_direction, args.filter_symbol, args.dry_run, args.yes, args.use_cancel_recreate)
         elif args.command == "list":
-            list_orders(args.symbol, args.summary)
+            list_command(args.symbol, args.summary)
         elif args.command == "market-make":
-            # Determine side filter
-            side_filter = None
-            if args.buy_only:
-                side_filter = "buy"
-            elif args.sell_only:
-                side_filter = "sell"
-            
-            if args.center:
-                # Resolve center price from string input
-                center_price = resolve_center_price(args.symbol, args.center)
-                if center_price is None:
-                    return  # Error already printed by resolve_center_price
-                
-                market_make(args.symbol, center_price, args.levels, args.spread, args.size, args.dry_run, side_filter, args.ignore_validation)
-            else:
-                centers = suggest_price_centers(args.symbol)
-                if centers:
-                    side_suffix = ""
-                    if side_filter == "buy":
-                        side_suffix = " --buy-only"
-                    elif side_filter == "sell":
-                        side_suffix = " --sell-only"
-                    
-                    print(f"\nTo create market making orders, run:")
-                    print(f"maker-kit market-make --symbol {args.symbol} --center PRICE --levels {args.levels} --spread {args.spread} --size {args.size}{side_suffix}")
-                    print(f"\nExample using mid price:")
-                    print(f"maker-kit market-make --symbol {args.symbol} --center {centers['mid_price']:.6f} --levels {args.levels} --spread {args.spread} --size {args.size}{side_suffix}")
-                    print(f"\nExample using mid-range:")
-                    print(f"maker-kit market-make --symbol {args.symbol} --center mid-range --levels {args.levels} --spread {args.spread} --size {args.size}{side_suffix}")
+            market_make_command(args.symbol, args.center, args.levels, args.spread, 
+                              args.size, args.dry_run, args.buy_only, args.sell_only,
+                              args.ignore_validation, args.yes)
         elif args.command == "auto-market-make":
-            # Determine side filter
-            side_filter = None
-            if args.buy_only:
-                side_filter = "buy"
-            elif args.sell_only:
-                side_filter = "sell"
-            
-            # Resolve center price from string input
-            center_price = resolve_center_price(args.symbol, args.center)
-            if center_price is None:
-                return  # Error already printed by resolve_center_price
-            
-            asyncio.run(auto_market_make(args.symbol, center_price, args.levels, args.spread, args.size, side_filter, args.test_only, args.ignore_validation))
+            auto_market_make_command(args.symbol, args.center, args.levels, args.spread, 
+                                   args.size, args.buy_only, args.sell_only, args.test_only,
+                                   args.ignore_validation, args.yes)
         elif args.command == "fill-spread":
-            # Resolve center price if provided
-            center_price = None
-            if args.center:
-                center_price = resolve_center_price(args.symbol, args.center)
-                if center_price is None:
-                    return  # Error already printed by resolve_center_price
-            
-            fill_spread(args.symbol, args.target_spread, args.size, center_price, args.dry_run)
+            fill_spread_command(args.symbol, args.target_spread, args.size, args.center, args.dry_run, args.yes)
         else:
             parser.print_help()
     
-    # Run the command (only auto-market-make needs async)
+    # Run the command
     try:
         run_command()
     except KeyboardInterrupt:

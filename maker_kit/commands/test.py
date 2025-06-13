@@ -1,0 +1,10 @@
+"""
+Test command - Test API and WebSocket connections.
+"""
+
+from ..utilities.auth import test_comprehensive
+
+
+def test_command():
+    """Test both REST API and WebSocket connections comprehensively"""
+    return test_comprehensive() 

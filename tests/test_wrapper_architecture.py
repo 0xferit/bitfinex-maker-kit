@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
 
 # Import the wrapper and related modules
-from maker_kit.bitfinex_client import BitfinexClientWrapper, create_wrapper_client
+from maker_kit.exchanges.bitfinex_client import BitfinexClientWrapper, create_wrapper_client
 from maker_kit.auth import create_client
 
 
@@ -39,7 +39,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
         # Mock the Bitfinex API responses
         self.mock_bitfinex_client.rest.auth.submit_order.return_value = self.mock_response
     
-    @patch('maker_kit.bitfinex_client.Client')
+    @patch('maker_kit.exchanges.bitfinex_client.Client')
     def test_wrapper_limit_order_enforces_post_only(self, mock_client_class):
         """
         🎯 THE ULTIMATE TEST: Wrapper ALWAYS uses POST_ONLY for limit orders
@@ -64,7 +64,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
             flags=4096  # POST_ONLY flag is AUTOMATICALLY added by wrapper
         )
     
-    @patch('maker_kit.bitfinex_client.Client')
+    @patch('maker_kit.exchanges.bitfinex_client.Client')
     def test_wrapper_market_order_no_post_only(self, mock_client_class):
         """Test that wrapper does NOT use POST_ONLY for market orders"""
         mock_client_class.return_value = self.mock_bitfinex_client
@@ -83,7 +83,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
             # NO FLAGS PARAMETER for market orders
         )
     
-    @patch('maker_kit.bitfinex_client.Client')
+    @patch('maker_kit.exchanges.bitfinex_client.Client')
     def test_wrapper_hardcoded_post_only_flag(self, mock_client_class):
         """
         🔐 BOUNDARY TEST: POST_ONLY flag (4096) is hardcoded at API boundary
@@ -114,7 +114,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
                 self.assertEqual(call_kwargs['flags'], 4096,
                                f"Wrapper must add POST_ONLY flag for {side} {amount} @ {price}")
     
-    @patch('maker_kit.bitfinex_client.Client')
+    @patch('maker_kit.exchanges.bitfinex_client.Client')
     def test_wrapper_amount_conversion(self, mock_client_class):
         """Test that wrapper properly converts amounts for Bitfinex API"""
         mock_client_class.return_value = self.mock_bitfinex_client
@@ -239,7 +239,7 @@ class TestApplicationLayerIntegration(unittest.TestCase):
 class TestWrapperFactory(unittest.TestCase):
     """Test the wrapper factory function"""
     
-    @patch('maker_kit.bitfinex_client.BitfinexClientWrapper')
+    @patch('maker_kit.exchanges.bitfinex_client.BitfinexClientWrapper')
     def test_create_wrapper_client_factory(self, mock_wrapper_class):
         """Test that factory function creates wrapper correctly"""
         mock_wrapper_instance = Mock()

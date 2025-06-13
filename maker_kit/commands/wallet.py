@@ -1,11 +1,11 @@
 """
-Wallet operations for Bitfinex CLI.
+Wallet command - Show wallet balances.
 """
 
-from .auth import create_client
+from ..utilities.auth import create_client
 
 
-def get_wallets():
+def wallet_command():
     """Get and display wallet balances"""
     client = create_client()
     
