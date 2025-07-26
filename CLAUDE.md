@@ -7,7 +7,7 @@
 ### Key Characteristics
 - **Language**: Python 3.12+ (strictly enforced)
 - **License**: MIT (open source)
-- **Version**: 1.1.0 (production-ready)
+- **Version**: 3.5.0 (production-ready)
 - **Purpose**: Market making and automated trading on Bitfinex
 - **Architecture**: Single exchange, single strategy, safety-focused design
 
@@ -28,7 +28,7 @@
 ## Codebase Structure
 
 ```
-maker_kit/
+bitfinex_maker_kit/
 ├── __init__.py              # Package initialization
 ├── __main__.py              # Entry point for CLI
 ├── cli.py                   # Main command-line interface
@@ -148,17 +148,17 @@ BITFINEX_API_SECRET=your_api_secret
 ## Command Examples
 ```bash
 # Test connection
-python -m maker_kit test
+python -m bitfinex_maker_kit test
 
 # Show wallet
-python -m maker_kit wallet
+python -m bitfinex_maker_kit wallet
 
 # List orders
-python -m maker_kit list
+python -m bitfinex_maker_kit list
 
 # Market make with 5 levels, 2% spread
-python -m maker_kit market-make --levels 5 --spread 2.0
+python -m bitfinex_maker_kit market-make --levels 5 --spread 2.0
 
 # Auto market make
-python -m maker_kit auto-market-make --symbol tBTCUSD
+python -m bitfinex_maker_kit auto-market-make --symbol tBTCUSD
 ```

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitfinex-maker-kit"
-version = "1.1.0"
+version = "4.0.0"
 description = "Professional market making toolkit for Bitfinex cryptocurrency exchange"
 readme = "README.md"
 license = {text = "MIT"}
@@ -29,17 +29,19 @@ dev = [
 ]
 
 [project.scripts]
-maker-kit = "maker_kit.cli:main"
+maker-kit = "bitfinex_maker_kit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["maker_kit*"]
+include = ["bitfinex_maker_kit*"]
 exclude = ["tests*"]
 
 # Ruff - All-in-one linter and formatter (replaces black, isort, flake8, pyupgrade)
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E", "W",    # pycodestyle
     "F",         # pyflakes  
@@ -74,7 +76,7 @@ ignore_missing_imports = true
 
 # Coverage - Test coverage reporting
 [tool.coverage.run]
-source = ["maker_kit"]
+source = ["bitfinex_maker_kit"]
 omit = ["*/tests/*", "*/__init__.py"]
 branch = true
 
@@ -87,7 +89,7 @@ skip_empty = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
-    "--cov=maker_kit",
+    "--cov=bitfinex_maker_kit",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--strict-markers",
