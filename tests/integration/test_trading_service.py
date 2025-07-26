@@ -12,7 +12,7 @@ and API clients. Cache testing remains for component validation only.
 """
 
 import asyncio
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import pytest_asyncio
@@ -525,7 +525,15 @@ class TestConcurrencyIntegration:
         with patch("bitfinex_maker_kit.utilities.orders.submit_order") as mock_submit:
             mock_results = []
             for i in range(5):
-                mock_results.append((True, {"id": 12345678 + i, "status": "ACTIVE"}))
+                # Create a mock order object that matches what the real client returns
+                mock_order = Mock()
+                mock_order.id = 12345678 + i
+                mock_order.status = "ACTIVE"
+                mock_order.symbol = "tBTCUSD"
+                mock_order.amount = "0.1"
+                mock_order.price = f"{50000 + i * 100}.0"
+                mock_order.side = "buy"
+                mock_results.append(mock_order)
 
             mock_submit.side_effect = mock_results
 
@@ -537,10 +545,10 @@ class TestConcurrencyIntegration:
 
             # Verify all orders were placed
             assert len(results) == 5
-            for i, (success, result) in enumerate(results):
+            for i, (success, order_result) in enumerate(results):
                 assert success is True
-                assert result["id"] == 12345678 + i
-                assert result["status"] == "ACTIVE"
+                assert order_result.id == 12345678 + i
+                assert order_result.status == "ACTIVE"
 
     @pytest_asyncio.fixture
     async def concurrent_cache_service(self):

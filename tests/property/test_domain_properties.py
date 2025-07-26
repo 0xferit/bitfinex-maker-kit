@@ -423,9 +423,14 @@ class DomainObjectStateMachine(RuleBasedStateMachine):
         add_result = amount1 + amount2
         assert add_result.value == amount1.value + amount2.value
 
-        # Subtraction
-        sub_result = amount1 - amount2
-        assert sub_result.value == amount1.value - amount2.value
+        # Subtraction - only if result would be positive
+        if amount1.value > amount2.value:
+            sub_result = amount1 - amount2
+            assert sub_result.value == amount1.value - amount2.value
+        else:
+            # Should raise ValueError for non-positive result
+            with pytest.raises(ValueError, match="Subtraction would result in non-positive amount"):
+                amount1 - amount2
 
     @rule(price=prices, amount=amounts)
     def test_order_calculations(self, price, amount):
