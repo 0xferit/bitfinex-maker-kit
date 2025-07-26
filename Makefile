@@ -1,13 +1,14 @@
 # Makefile for Bitfinex Maker-Kit
 # Simple quality workflow automation
 
-.PHONY: help install format lint type-check security test quality clean
+.PHONY: help install venv setup format lint type-check security test quality clean
 
 # Default target
 help:
 	@echo "Bitfinex Maker-Kit - Simple Quality Workflow"
 	@echo ""
 	@echo "Available commands:"
+	@echo "  setup       Create virtual environment and install (recommended)"
 	@echo "  install     Install development dependencies"
 	@echo "  format      Format code automatically"
 	@echo "  lint        Run linter (with auto-fix)"
@@ -17,13 +18,51 @@ help:
 	@echo "  quality     Run all quality checks (recommended)"
 	@echo "  clean       Clean up generated files"
 	@echo ""
-	@echo "Quick start: make install && make quality"
+	@echo "Quick start: make setup && make quality"
+	@echo "If externally-managed-environment error: make setup"
+
+# Create virtual environment and install (recommended)
+setup: venv install
+	@echo "🎉 Development environment ready!"
+	@echo "💡 Activate with: source venv/bin/activate"
+
+# Create virtual environment
+venv:
+	@echo "🐍 Creating virtual environment..."
+	@if [ ! -d "venv" ]; then \
+		python3 -m venv venv; \
+		echo "✅ Virtual environment created in ./venv"; \
+		echo "💡 Activate with: source venv/bin/activate"; \
+	else \
+		echo "✅ Virtual environment already exists"; \
+	fi
 
 # Install development dependencies
 install:
 	@echo "📦 Installing development dependencies..."
-	pip install -e ".[dev]"
-	pre-commit install
+	@if pip install -e ".[dev]" 2>/dev/null; then \
+		echo "✅ Dependencies installed successfully!"; \
+	else \
+		echo "❌ Installation failed. This might be due to externally-managed-environment."; \
+		echo ""; \
+		echo "💡 Solutions:"; \
+		echo "1. Use virtual environment (recommended):"; \
+		echo "   python3 -m venv venv && source venv/bin/activate && make install"; \
+		echo ""; \
+		echo "2. Force install (not recommended):"; \
+		echo "   pip install -e \".[dev]\" --break-system-packages"; \
+		echo ""; \
+		echo "3. User install:"; \
+		echo "   pip install -e \".[dev]\" --user"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit install; \
+		echo "✅ Pre-commit hooks installed!"; \
+	else \
+		echo "⚠️  pre-commit not available, skipping hooks installation"; \
+	fi
 	@echo "✅ Installation complete!"
 
 # Format code automatically

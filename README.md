@@ -63,22 +63,54 @@ echo 'BITFINEX_API_SECRET=your_api_secret_here' >> .env
 ```
 
 ### Development Installation
+
+**Recommended: One-Command Setup** (solves externally-managed-environment errors)
 ```bash
 # Clone repository
-git clone https://github.com/bitfinex/maker-kit.git
-cd maker-kit
+git clone https://github.com/0xferit/bitfinex-maker-kit.git
+cd bitfinex-maker-kit
 
-# Quick setup (installs dev dependencies + pre-commit)
-make install
+# One-command setup (creates venv + installs everything)
+make setup
 
-# Or manual installation
-pip install -e ".[dev]"
-pre-commit install
+# Activate virtual environment (if not already active)
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Verify installation
 make quality          # Run all quality checks
 pytest               # Run tests
 ```
+
+**Alternative: Using pipx** (for tool installation)
+```bash
+# Install as isolated application
+pipx install git+https://github.com/0xferit/bitfinex-maker-kit.git
+
+# For development
+git clone https://github.com/0xferit/bitfinex-maker-kit.git
+cd bitfinex-maker-kit
+pipx install -e .
+```
+
+**Manual Installation** (if virtual environment setup fails)
+```bash
+# Option 1: Force install (not recommended)
+pip install -e ".[dev]" --break-system-packages
+
+# Option 2: User install
+pip install -e ".[dev]" --user
+
+# Option 3: Traditional virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pre-commit install
+```
+
+**💡 Troubleshooting "externally-managed-environment" Error:**
+- **Modern Python/macOS**: Use virtual environment (recommended above)
+- **System Python**: Use `pipx` for isolated installation  
+- **Docker**: Use the provided Dockerfile for containerized development
 
 ## 🚀 Quick Start
 
