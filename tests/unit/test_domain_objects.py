@@ -174,27 +174,23 @@ class TestAmount:
         amount1 = Amount("1.5")
         assert amount1.value == Decimal("1.5")
 
-        # Negative amount (for sell orders)
-        amount2 = Amount("-1.5")
-        assert amount2.value == Decimal("-1.5")
-
         # From various types
-        amount3 = Amount(1.5)
-        assert amount3.value == Decimal("1.5")
+        amount2 = Amount(1.5)
+        assert amount2.value == Decimal("1.5")
 
-        amount4 = Amount(Decimal("1.5"))
-        assert amount4.value == Decimal("1.5")
+        amount3 = Amount(Decimal("1.5"))
+        assert amount3.value == Decimal("1.5")
 
     def test_amount_validation(self):
         """Test amount validation rules."""
         # Valid amounts
-        valid_amounts = ["0.001", "1.0", "-1.0", "1000.5", "-1000.5"]
+        valid_amounts = ["0.001", "1.0", "1000.5"]
         for amount_str in valid_amounts:
             amount = Amount(amount_str)
-            assert amount.value != 0
+            assert amount.value > 0
 
-        # Invalid amounts
-        invalid_amounts = ["0", "abc", "", None]
+        # Invalid amounts (zero, negative, or non-numeric)
+        invalid_amounts = ["0", "-1.0", "-1000.5", "abc", "", None]
         for invalid_amount in invalid_amounts:
             with pytest.raises((ValueError, TypeError, InvalidOperation)):
                 Amount(invalid_amount)
@@ -203,19 +199,13 @@ class TestAmount:
         """Test amount sign operations."""
         amount = Amount("1.5")
 
-        # Absolute value
+        # Absolute value (should return self since all amounts are positive)
+        assert amount.abs() is amount
         assert amount.abs().value == Decimal("1.5")
-        assert Amount("-1.5").abs().value == Decimal("1.5")
 
-        # Negation
-        assert (-amount).value == Decimal("-1.5")
-        assert (-Amount("-1.5")).value == Decimal("1.5")
-
-        # Sign checking
+        # Sign checking (all amounts are positive)
         assert amount.is_positive()
         assert not amount.is_negative()
-        assert Amount("-1.5").is_negative()
-        assert not Amount("-1.5").is_positive()
 
     def test_amount_arithmetic(self):
         """Test amount arithmetic operations."""
@@ -238,12 +228,80 @@ class TestAmount:
         result_div = amount1 / Decimal("3")
         assert result_div.value == Decimal("0.5")
 
+    def test_amount_arithmetic_invariants(self):
+        """Test that arithmetic operations maintain the positive, non-zero invariant."""
+        amount1 = Amount("1.5")
+        amount2 = Amount("0.5")
+
+        # Test subtraction that would result in zero (should fail)
+        with pytest.raises(ValueError, match="Subtraction would result in non-positive amount"):
+            amount1 - amount1
+
+        # Test multiplication by zero (should fail)
+        with pytest.raises(ValueError, match="Multiplication factor must be positive"):
+            amount1 * 0
+
+        # Test multiplication by negative number (should fail)
+        with pytest.raises(ValueError, match="Multiplication factor must be positive"):
+            amount1 * -1
+
+        # Test division by zero (should fail)
+        with pytest.raises(ValueError, match="Division divisor must be positive"):
+            amount1 / 0
+
+        # Test division by negative number (should fail)
+        with pytest.raises(ValueError, match="Division divisor must be positive"):
+            amount1 / -1
+
+        # Test division by extremely large number (should fail)
+        with pytest.raises(
+            ValueError,
+            match="Division by extremely large number would result in effectively zero amount",
+        ):
+            amount1 / Decimal("1e20")
+
+        # Test that valid operations work correctly
+        result = amount1 + amount2
+        assert result.value == Decimal("2.0")
+
+        result = amount1 - amount2
+        assert result.value == Decimal("1.0")
+
+        result = amount1 * Decimal("2")
+        assert result.value == Decimal("3.0")
+
+        result = amount1 / Decimal("2")
+        assert result.value == Decimal("0.75")
+
+    def test_amount_arithmetic_edge_cases(self):
+        """Test edge cases in amount arithmetic operations."""
+        # Test with very small amounts
+        small_amount = Amount("0.00000001")
+
+        # Multiplication should work with positive factors
+        result = small_amount * Decimal("2")
+        assert result.value > 0
+
+        # Division should work with reasonable divisors
+        result = small_amount / Decimal("2")
+        assert result.value > 0
+
+        # Test that the add method also validates properly
+        amount1 = Amount("1.0")
+        amount2 = Amount("0.5")
+
+        result = amount1.add(amount2)
+        assert result.value == Decimal("1.5")
+
+        # Test that multiply method validates factors
+        with pytest.raises(ValueError, match="Multiplication factor must be positive"):
+            amount1.multiply(0)
+
     def test_amount_comparison(self):
         """Test amount comparison operations."""
         amount1 = Amount("1.5")
         amount2 = Amount("1.5")
         amount3 = Amount("2.0")
-        amount4 = Amount("-1.5")
 
         # Equality
         assert amount1 == amount2
@@ -251,7 +309,6 @@ class TestAmount:
 
         # Comparison
         assert amount1 < amount3
-        assert amount1 > amount4
         assert amount1 <= amount2
         assert amount1 >= amount2
 
@@ -367,7 +424,6 @@ class TestDomainObjectsParametrized:
         "amount_input,expected_decimal",
         [
             ("1.5", Decimal("1.5")),
-            ("-1.5", Decimal("-1.5")),
             (1.5, Decimal("1.5")),
             (Decimal("1.5"), Decimal("1.5")),
         ],

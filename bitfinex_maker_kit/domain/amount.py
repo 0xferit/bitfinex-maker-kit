@@ -34,8 +34,8 @@ class Amount:
         else:
             raise TypeError(f"Amount must be int, float, str, or Decimal, got: {type(value)}")
 
-        if decimal_value == 0:
-            raise ValueError(f"Amount cannot be zero, got: {decimal_value}")
+        if decimal_value <= 0:
+            raise ValueError(f"Amount must be positive, got: {decimal_value}")
 
         object.__setattr__(self, "value", decimal_value)
 
@@ -113,7 +113,10 @@ class Amount:
 
     def add(self, other: "Amount") -> "Amount":
         """Add another amount to this one."""
-        return Amount(self.value + other.value)
+        result = self.value + other.value
+        if result <= 0:
+            raise ValueError(f"Addition would result in non-positive amount: {result}")
+        return Amount(result)
 
     def subtract(self, other: "Amount") -> "Amount":
         """Subtract another amount from this one."""
@@ -126,6 +129,10 @@ class Amount:
         """Multiply amount by a factor."""
         if isinstance(factor, float):
             factor = Decimal(str(factor))
+
+        # Validate factor is positive and non-zero
+        if factor <= 0:
+            raise ValueError(f"Multiplication factor must be positive, got: {factor}")
 
         result = self.value * factor
         if result <= 0:
@@ -176,61 +183,67 @@ class Amount:
 
     def abs(self) -> "Amount":
         """Return absolute value of amount."""
-        return Amount(abs(self.value))
-
-    def __neg__(self) -> "Amount":
-        """Return negated amount."""
-        return Amount(-self.value)
+        return self
 
     def is_positive(self) -> bool:
         """Check if amount is positive."""
-        return self.value > 0
+        return True
 
     def is_negative(self) -> bool:
         """Check if amount is negative."""
-        return self.value < 0
-
-    @classmethod
-    def _create_unchecked(cls, value: Decimal) -> "Amount":
-        """Create Amount without zero validation for arithmetic operations."""
-        instance = object.__new__(cls)
-        object.__setattr__(instance, "value", value)
-        return instance
+        return False
 
     def __add__(self, other: "Amount") -> "Amount":
         """Addition operation."""
         result = self.value + other.value
-        if result == 0:
-            # For property tests, return an unchecked amount that will fail when validated
-            return self._create_unchecked(result)
+        if result <= 0:
+            raise ValueError(f"Addition would result in non-positive amount: {result}")
         return Amount(result)
 
     def __sub__(self, other: "Amount") -> "Amount":
         """Subtraction operation."""
         result = self.value - other.value
-        if result == 0:
-            # For property tests, return an unchecked amount that will fail when validated
-            return self._create_unchecked(result)
+        if result <= 0:
+            raise ValueError(f"Subtraction would result in non-positive amount: {result}")
         return Amount(result)
 
     def __mul__(self, other: Decimal | int | float) -> "Amount":
         """Multiplication operation."""
         if isinstance(other, int | float):
             other = Decimal(str(other))
+
+        # Validate factor is positive and non-zero
+        if other <= 0:
+            raise ValueError(f"Multiplication factor must be positive, got: {other}")
+
         result = self.value * other
-        if result == 0:
-            # For property tests, return an unchecked amount that will fail when validated
-            return self._create_unchecked(result)
+        if result <= 0:
+            raise ValueError(f"Multiplication would result in non-positive amount: {result}")
         return Amount(result)
 
     def __truediv__(self, other: Decimal | int | float) -> "Amount":
         """Division operation."""
         if isinstance(other, int | float):
             other = Decimal(str(other))
+
+        # Validate divisor is positive and non-zero
+        if other <= 0:
+            raise ValueError(f"Division divisor must be positive, got: {other}")
+
+        # Check for division by very large numbers that could result in zero
+        if other > self.value * Decimal("1e10"):  # Prevent division by extremely large numbers
+            raise ValueError(
+                "Division by extremely large number would result in effectively zero amount"
+            )
+
         result = self.value / other
-        if result == 0:
-            # For property tests, return an unchecked amount that will fail when validated
-            return self._create_unchecked(result)
+        if result <= 0:
+            raise ValueError(f"Division would result in non-positive amount: {result}")
+
+        # Additional check for effectively zero results due to precision
+        if result < Decimal("1e-10"):  # Consider amounts smaller than this as effectively zero
+            raise ValueError(f"Division would result in effectively zero amount: {result}")
+
         return Amount(result)
 
     def __repr__(self) -> str:
