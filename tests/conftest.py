@@ -44,6 +44,12 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "websocket: mark test as requiring WebSocket functionality")
     config.addinivalue_line("markers", "cache: mark test as cache-related")
     config.addinivalue_line("markers", "async_test: mark test as async test")
+    config.addinivalue_line(
+        "markers", "paper_trading: mark test as requiring paper trading credentials"
+    )
+    config.addinivalue_line(
+        "markers", "realistic_load: mark test as realistic load test against real API"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -78,6 +84,12 @@ def event_loop():
 def sample_symbol() -> Symbol:
     """Create sample trading symbol."""
     return Symbol("tBTCUSD")
+
+
+@pytest.fixture
+def paper_trading_symbol() -> Symbol:
+    """Create paper trading symbol for integration tests."""
+    return Symbol("tTESTBTCTESTUSD")
 
 
 @pytest.fixture
@@ -238,6 +250,32 @@ def test_config() -> dict[str, Any]:
 
 
 @pytest.fixture
+def paper_trading_config() -> dict[str, Any]:
+    """Paper trading configuration for integration tests."""
+    return {
+        "api_key": os.environ.get("BITFINEX_PAPER_API_KEY", ""),
+        "api_secret": os.environ.get("BITFINEX_PAPER_API_SECRET", ""),
+        "base_url": "https://api.bitfinex.com",  # Paper trading uses authenticated endpoint
+        "websocket_url": "wss://api.bitfinex.com/ws/2",  # Authenticated WebSocket
+        "rate_limit": 90,  # Bitfinex rate limit for authenticated requests
+        "timeout": 10.0,  # Shorter timeout for load testing
+        "max_retries": 3,
+        "paper_trading": True,
+    }
+
+
+@pytest.fixture
+def paper_trading_available(paper_trading_config) -> bool:
+    """Check if paper trading credentials are available."""
+    return bool(
+        paper_trading_config["api_key"]
+        and paper_trading_config["api_secret"]
+        and paper_trading_config["api_key"] != ""
+        and paper_trading_config["api_secret"] != ""
+    )
+
+
+@pytest.fixture
 async def cache_service() -> AsyncGenerator[CacheService, None]:
     """Create cache service for testing."""
     service = create_cache_service(max_size=100, default_ttl=10.0)
@@ -392,6 +430,38 @@ def performance_thresholds() -> dict[str, float]:
         "cpu_usage_pct": 50.0,
         "order_processing_time_ms": 100.0,
     }
+
+
+@pytest.fixture
+def realistic_load_thresholds() -> dict[str, float]:
+    """Realistic load test thresholds for paper trading integration."""
+    return {
+        "max_api_response_time_ms": 5000.0,  # 5 second max for network calls
+        "min_operations_per_second": 1.0,  # At least 1 op/sec
+        "max_operations_per_second": 50.0,  # Realistic upper bound
+        "max_memory_usage_mb": 200.0,  # Reasonable memory limit
+        "max_error_rate": 0.1,  # 10% error tolerance for network issues
+        "rate_limit_compliance_pct": 0.95,  # 95% compliance with rate limits
+    }
+
+
+@pytest.fixture
+def paper_trading_service(paper_trading_config, paper_trading_available):
+    """Create trading service with paper trading credentials."""
+    if not paper_trading_available:
+        pytest.skip("Paper trading credentials not available")
+
+    from bitfinex_maker_kit.services.container import get_container
+
+    container = get_container()
+    container.configure(paper_trading_config)
+
+    # Create real trading service with paper trading credentials
+    service = container.create_trading_service()
+    yield service
+
+    # Cleanup
+    container.cleanup()
 
 
 # WebSocket fixtures

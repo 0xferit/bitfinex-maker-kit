@@ -117,8 +117,19 @@ class TradingService:
             order_id_int = order_id.to_int()
             result = self.client.cancel_order(order_id_int)
 
-            logger.info(f"Order cancellation result: {result}")
-            return True, result
+            # Check if cancellation was successful
+            if result and hasattr(result, "status"):
+                success = result.status == "CANCELED"
+                logger.info(f"Order cancellation {'successful' if success else 'failed'}: {result}")
+                return success, result
+            elif result and hasattr(result, "id"):
+                # If result has an ID but no status, assume success
+                logger.info(f"Order cancellation successful: {result}")
+                return True, result
+            else:
+                # If no meaningful result, assume failure
+                logger.warning(f"Order cancellation result unclear: {result}")
+                return False, result
 
         except Exception as e:
             logger.error(f"Error cancelling order {order_id}: {e}")

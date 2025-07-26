@@ -132,5 +132,7 @@ markers = [
     "integration: Integration tests",
     "slow: Slow tests",
     "benchmark: Performance benchmark tests",
-    "load: Load testing tests"
+    "load: Load testing tests",
+    "paper_trading: Tests requiring paper trading credentials",
+    "realistic_load: Realistic load tests against real API"
 ]
