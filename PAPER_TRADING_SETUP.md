@@ -41,19 +41,19 @@ Set the following environment variables with your Paper Trading credentials:
 
 ```bash
 # For bash/zsh
-export BITFINEX_PAPER_API_KEY="your_paper_trading_api_key_here"
-export BITFINEX_PAPER_API_SECRET="your_paper_trading_api_secret_here"
+export BFX_API_PAPER_KEY="your_paper_trading_api_key_here"
+export BFX_API_PAPER_SECRET="your_paper_trading_api_secret_here"
 
 # For fish shell
-set -gx BITFINEX_PAPER_API_KEY "your_paper_trading_api_key_here"
-set -gx BITFINEX_PAPER_API_SECRET "your_paper_trading_api_secret_here"
+set -gx BFX_API_PAPER_KEY "your_paper_trading_api_key_here"
+set -gx BFX_API_PAPER_SECRET "your_paper_trading_api_secret_here"
 ```
 
 You can also create a `.env.testing` file in the project root:
 
 ```env
-BITFINEX_PAPER_API_KEY=your_paper_trading_api_key_here
-BITFINEX_PAPER_API_SECRET=your_paper_trading_api_secret_here
+BFX_API_PAPER_KEY=your_paper_trading_api_key_here
+BFX_API_PAPER_SECRET=your_paper_trading_api_secret_here
 ```
 
 ### 4. Verify Setup
@@ -115,8 +115,8 @@ pytest tests/load/test_realistic_load.py::TestRealisticTradingLoadScenarios::tes
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `BITFINEX_PAPER_API_KEY` | Paper trading API key | Yes |
-| `BITFINEX_PAPER_API_SECRET` | Paper trading API secret | Yes |
+| `BFX_API_PAPER_KEY` | Paper trading API key | Yes |
+| `BFX_API_PAPER_SECRET` | Paper trading API secret | Yes |
 
 ### Test Parameters
 
@@ -183,8 +183,8 @@ from bitfinex_maker_kit.services.container import get_container
 
 # Configure with paper trading credentials
 config = {
-    "api_key": os.environ["BITFINEX_PAPER_API_KEY"],
-    "api_secret": os.environ["BITFINEX_PAPER_API_SECRET"],
+    "api_key": os.environ["BFX_API_PAPER_KEY"],
+    "api_secret": os.environ["BFX_API_PAPER_SECRET"],
     "base_url": "https://api.bitfinex.com",
 }
 
@@ -231,15 +231,15 @@ For automated testing in CI/CD:
 ```yaml
 # GitHub Actions example
 env:
-  BITFINEX_PAPER_API_KEY: ${{ secrets.BITFINEX_PAPER_API_KEY }}
-  BITFINEX_PAPER_API_SECRET: ${{ secrets.BITFINEX_PAPER_API_SECRET }}
+  BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+  BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
 
 steps:
   - name: Run realistic load tests
     run: |
       pytest tests/load/test_realistic_load.py -m realistic_load -v
     # Only run if credentials are available
-    if: env.BITFINEX_PAPER_API_KEY != ''
+    if: env.BFX_API_PAPER_KEY != ''
 ```
 
 Add your paper trading credentials as repository secrets in GitHub Actions, GitLab CI, or your CI/CD platform.

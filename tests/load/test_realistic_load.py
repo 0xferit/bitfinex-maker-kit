@@ -4,15 +4,15 @@ Realistic integration load testing for Bitfinex-Maker-Kit.
 Tests system behavior under realistic load conditions using Bitfinex Paper Trading API.
 Validates production readiness with actual network conditions, rate limits, and API behavior.
 
-IMPORTANT: These tests require BITFINEX_PAPER_API_KEY and BITFINEX_PAPER_API_SECRET
+IMPORTANT: These tests require BFX_API_PAPER_KEY and BFX_API_PAPER_SECRET
 environment variables to be set with valid Paper Trading credentials.
 
 Setup Instructions:
 1. Create a Bitfinex Paper Trading sub-account
 2. Generate API credentials for the sub-account
 3. Set environment variables:
-   export BITFINEX_PAPER_API_KEY="your_paper_trading_api_key"
-   export BITFINEX_PAPER_API_SECRET="your_paper_trading_api_secret"
+   export BFX_API_PAPER_KEY="your_paper_trading_api_key"
+   export BFX_API_PAPER_SECRET="your_paper_trading_api_secret"
 4. Run tests: pytest tests/load/test_realistic_load.py -m paper_trading
 """
 

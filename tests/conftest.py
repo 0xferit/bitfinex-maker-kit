@@ -253,8 +253,8 @@ def test_config() -> dict[str, Any]:
 def paper_trading_config() -> dict[str, Any]:
     """Paper trading configuration for integration tests."""
     return {
-        "api_key": os.environ.get("BITFINEX_PAPER_API_KEY", ""),
-        "api_secret": os.environ.get("BITFINEX_PAPER_API_SECRET", ""),
+        "api_key": os.environ.get("BFX_API_PAPER_KEY", ""),
+        "api_secret": os.environ.get("BFX_API_PAPER_SECRET", ""),
         "base_url": "https://api.bitfinex.com",  # Paper trading uses authenticated endpoint
         "websocket_url": "wss://api.bitfinex.com/ws/2",  # Authenticated WebSocket
         "rate_limit": 90,  # Bitfinex rate limit for authenticated requests
