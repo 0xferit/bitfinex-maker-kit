@@ -472,6 +472,11 @@ class TestRealisticTradingLoadScenarios:
 class TestLoadTestReporting:
     """Tests for load test result reporting and analysis."""
 
+    @pytest.fixture
+    def load_test_runner(self):
+        """Create realistic load test runner."""
+        return RealisticLoadTestRunner()
+
     @pytest.mark.asyncio
     async def test_load_test_result_export(self, load_test_runner, paper_trading_service):
         """Test load test result data export and analysis."""

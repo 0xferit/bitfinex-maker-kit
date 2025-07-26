@@ -109,8 +109,8 @@ jobs:
         pytest tests/integration/ -v --tb=short --maxfail=5
       env:
         # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BITFINEX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BITFINEX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
 
   property-tests:
     name: Property-Based Tests
@@ -137,8 +137,8 @@ jobs:
       timeout-minutes: 10
       env:
         # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BITFINEX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BITFINEX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
 
   performance-tests:
     name: Performance Tests
@@ -166,8 +166,8 @@ jobs:
       timeout-minutes: 5
       env:
         # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BITFINEX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BITFINEX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
@@ -273,8 +273,11 @@ jobs:
       env:
         LOAD_TEST_DURATION: "short"
         # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BITFINEX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BITFINEX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        # Paper trading credentials for realistic load tests
+        BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY || '' }}
+        BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET || '' }}
     
     - name: Upload load test results
       uses: actions/upload-artifact@v4
