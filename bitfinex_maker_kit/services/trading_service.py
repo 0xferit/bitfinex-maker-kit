@@ -18,6 +18,7 @@ from ..domain.amount import Amount
 from ..domain.order_id import OrderId
 from ..domain.price import Price
 from ..domain.symbol import Symbol
+from ..utilities.constants import OrderSubmissionError
 
 logger = logging.getLogger(__name__)
 
@@ -235,14 +236,13 @@ class TradingService:
                 use_cancel_recreate=use_cancel_recreate,
             )
 
-            # Client returns dict result, convert to tuple format
-            if result and "status" in result and result["status"] == "SUCCESS":
-                logger.info(f"Order updated successfully: {result}")
-                return True, result
-            else:
-                logger.error(f"Order update failed: {result}")
-                return False, result
+            # Client returns dict on success or raises exception on failure
+            logger.info(f"Order updated successfully: {result}")
+            return True, result
 
+        except OrderSubmissionError as e:
+            logger.error(f"Order update failed: {e}")
+            return False, str(e)
         except Exception as e:
             logger.error(f"Error updating order {order_id}: {e}")
             return False, str(e)
