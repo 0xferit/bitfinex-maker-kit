@@ -245,7 +245,7 @@ class TestTradingInvariantProperties:
                 # Place ask order
                 ask_result = await trading_service.place_order(
                     symbol=Symbol("tBTCUSD"),
-                    amount=Amount(f"-{order_size}"),  # Negative for sell
+                    amount=Amount(str(order_size)),  # Positive amount for sell
                     price=Price(str(ask_price)),
                     side="sell",
                 )
@@ -323,7 +323,7 @@ class TestTradingInvariantProperties:
                 symbol=Symbol(symbol_str),
                 amount=Amount(amount_str),
                 price=Price(price_str),
-                side="sell" if Amount(amount_str).value < 0 else "buy",
+                side="buy",  # Use fixed side since amounts are always positive
             )
 
             order_id = result["id"]
@@ -335,7 +335,7 @@ class TestTradingInvariantProperties:
             # Simulate partial execution
             trading_service.simulate_partial_fill(
                 order_id,
-                str(abs(Amount(amount_str).value) / 2),  # Half filled
+                str(Amount(amount_str).value / 2),  # Half filled
                 price_str,
             )
 
@@ -382,7 +382,7 @@ class TradingOperationsStateMachine(RuleBasedStateMachine):
         """Place a trading order."""
         try:
             amount = Amount(amount_str)
-            side = "sell" if amount.value < 0 else "buy"
+            side = "buy"  # Use fixed side since amounts are always positive
 
             # Convert to sync for stateful testing
             import asyncio
@@ -570,19 +570,16 @@ class TestTradingBusinessRules:
         try:
             amount = Amount(amount_str)
 
-            # Amount should never be zero
-            assert amount.value != 0
+            # Amount should always be positive
+            assert amount.value > 0
 
-            # Absolute value should be positive
+            # Absolute value should be positive (returns self since all amounts are positive)
+            assert amount.abs() is amount
             assert amount.abs().value > 0
 
-            # Sign should determine order side
-            if amount.value > 0:
-                assert amount.is_positive()
-                assert not amount.is_negative()
-            else:
-                assert amount.is_negative()
-                assert not amount.is_positive()
+            # All amounts should be positive
+            assert amount.is_positive()
+            assert not amount.is_negative()
 
         except (ValueError, TypeError):
             # Invalid amounts should raise exceptions

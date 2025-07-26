@@ -5,7 +5,7 @@ Uses Hypothesis to generate test cases and verify mathematical properties,
 invariants, and edge cases for domain value objects.
 """
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 import pytest
 from hypothesis import assume, example, given
@@ -55,16 +55,16 @@ def valid_prices(draw):
 
 @st.composite
 def valid_amounts(draw):
-    """Generate valid amount values (can be negative for sell orders)."""
+    """Generate valid amount values (positive only)."""
     # Generate amounts with various scales
     amount_strategies = st.one_of(
-        st.decimals(min_value=Decimal("-1000"), max_value=Decimal("1000"), places=8),
-        st.decimals(min_value=Decimal("-100"), max_value=Decimal("100"), places=6),
-        st.decimals(min_value=Decimal("-10"), max_value=Decimal("10"), places=4),
+        st.decimals(min_value=Decimal("0.00000001"), max_value=Decimal("1000"), places=8),
+        st.decimals(min_value=Decimal("0.000001"), max_value=Decimal("100"), places=6),
+        st.decimals(min_value=Decimal("0.0001"), max_value=Decimal("10"), places=4),
     )
 
     amount_decimal = draw(amount_strategies)
-    assume(amount_decimal != 0)  # Amounts cannot be zero
+    assume(amount_decimal > 0)  # Amounts must be positive
 
     return str(amount_decimal)
 
@@ -231,17 +231,14 @@ class TestAmountProperties:
         """Test amount sign operations properties."""
         amount = Amount(amount_str)
 
-        # Absolute value is always positive
+        # Absolute value is always positive (returns self since all amounts are positive)
         abs_amount = amount.abs()
+        assert abs_amount is amount
         assert abs_amount.value > 0
 
-        # Negation changes sign
-        neg_amount = -amount
-        assert neg_amount.value == -amount.value
-
-        # Double negation returns to original
-        double_neg = -neg_amount
-        assert double_neg.value == amount.value
+        # All amounts should be positive
+        assert amount.is_positive()
+        assert not amount.is_negative()
 
     @given(valid_amounts(), valid_amounts())
     def test_amount_addition_properties(self, amount1_str, amount2_str):
@@ -254,45 +251,34 @@ class TestAmountProperties:
         result2 = amount2 + amount1
         assert result1.value == result2.value
 
-        # Adding negative should be same as subtraction
-        neg_amount2 = -amount2
-        sub_result = amount1 + neg_amount2
-        direct_sub = amount1 - amount2
-        assert sub_result.value == direct_sub.value
+        # Addition should always result in positive amount
+        assert result1.value > 0
+        assert result2.value > 0
 
     @given(valid_amounts())
     def test_amount_multiplication_properties(self, amount_str):
         """Test amount multiplication properties."""
         amount = Amount(amount_str)
 
-        # Multiplication by zero should raise error (amounts can't be zero)
-        zero_result = amount * Decimal("0")
-        with pytest.raises((ValueError, InvalidOperation)):
-            Amount(str(zero_result.value))
-
         # Multiplication by 1 preserves value
         identity_result = amount * Decimal("1")
         assert identity_result.value == amount.value
 
-        # Multiplication by -1 negates
-        neg_result = amount * Decimal("-1")
-        assert neg_result.value == (-amount).value
+        # Multiplication by positive factor should result in positive amount
+        factor = Decimal("2.5")
+        result = amount * factor
+        assert result.value > 0
+        assert result.value == amount.value * factor
 
     @given(valid_amounts())
     def test_amount_is_positive_negative_consistency(self, amount_str):
         """Test amount sign checking consistency."""
         amount = Amount(amount_str)
 
-        # Exactly one should be true
-        is_pos = amount.is_positive()
-        is_neg = amount.is_negative()
-        assert is_pos != is_neg  # XOR: exactly one is true
-
-        # Consistency with value sign
-        if amount.value > 0:
-            assert is_pos and not is_neg
-        else:
-            assert is_neg and not is_pos
+        # All amounts should be positive
+        assert amount.is_positive()
+        assert not amount.is_negative()
+        assert amount.value > 0
 
 
 class TestOrderIdProperties:
@@ -352,10 +338,10 @@ class TestCrossObjectProperties:
         # All objects should be valid
         assert str(symbol) == symbol_str
         assert price.value > 0
-        assert amount.value != 0
+        assert amount.value > 0
 
         # Calculate order total
-        total = price.value * abs(amount.value)
+        total = price.value * amount.value
         assert total > 0
 
     @given(valid_prices(), valid_amounts())
@@ -365,13 +351,13 @@ class TestCrossObjectProperties:
         amount = Amount(amount_str)
 
         # Order value calculation
-        order_value = price.value * abs(amount.value)
+        order_value = price.value * amount.value
         assert order_value > 0
 
         # Average price calculation (simulate partial fills)
-        if abs(amount.value) >= Decimal("0.001"):  # Avoid tiny amounts
+        if amount.value >= Decimal("0.001"):  # Avoid tiny amounts
             partial_amount = amount.value / Decimal("2")
-            avg_price = (order_value / 2) / abs(partial_amount)
+            avg_price = (order_value / 2) / partial_amount
             assert avg_price > 0
 
 
@@ -492,17 +478,12 @@ class TestDomainEdgeCases:
 
     @given(valid_amounts())
     @example("0.00000001")  # Minimum positive amount
-    @example("-0.00000001")  # Minimum negative amount
     @example("999999.999999")  # Large positive amount
-    @example("-999999.999999")  # Large negative amount
     def test_amount_extreme_values(self, amount_str):
-        """Test amount with extreme but valid values."""
+        """Test amount with extreme values."""
         amount = Amount(amount_str)
+        assert amount.value > 0
         assert amount.value != 0
-
-        # Should be able to get absolute value
-        abs_amount = amount.abs()
-        assert abs_amount.value > 0
 
     @given(valid_order_ids())
     @example(10000000)  # Minimum valid order ID

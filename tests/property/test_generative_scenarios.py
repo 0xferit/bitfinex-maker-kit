@@ -186,7 +186,7 @@ class TestComplexTradingScenarios:
                     # Place ask order
                     ask_order = await trading_service.place_order(
                         symbol=Symbol("tBTCUSD"),
-                        amount=Amount(str(-order_size)),
+                        amount=Amount(str(order_size)),  # Positive amount for sell
                         price=Price(str(ask_price)),
                         side="sell",
                     )
@@ -236,7 +236,7 @@ class TestComplexTradingScenarios:
 
             sell_order = await trading_service.place_order(
                 symbol=Symbol("tBTCUSD"),
-                amount=Amount(str(-position_size)),
+                amount=Amount(str(position_size)),  # Positive amount for sell
                 price=Price(str(sell_price)),
                 side="sell",
             )
@@ -273,7 +273,7 @@ class TestComplexTradingScenarios:
             # Sell on downtrend
             entry_price = base_price * (1 - threshold)
             side = "sell"
-            amount = -position_size
+            amount = position_size  # Positive amount for sell
         else:
             # No clear trend, skip
             return
@@ -328,7 +328,7 @@ class TestComplexTradingScenarios:
                     order_size = random.uniform(*size_range)
                     price = 50000 + random.uniform(-1000, 1000)
                     side = random.choice(["buy", "sell"])
-                    amount = order_size if side == "buy" else -order_size
+                    amount = order_size  # Always positive
 
                     order = await trading_service.place_order(
                         symbol=Symbol("tBTCUSD"),
