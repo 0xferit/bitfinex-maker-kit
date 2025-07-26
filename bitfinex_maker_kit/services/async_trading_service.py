@@ -83,8 +83,12 @@ class AsyncTradingService:
         """Synchronous order placement wrapper."""
         from ..utilities.orders import submit_order
 
-        success, result = submit_order(symbol=symbol, amount=amount, side=side, price=price)
-        return success, result
+        try:
+            result = submit_order(symbol=symbol, amount=amount, side=side, price=price)
+            return True, result
+        except Exception as e:
+            logger.error(f"Error in synchronous order placement: {e}")
+            return False, str(e)
 
     async def cancel_order_async(self, order_id: OrderId) -> tuple[bool, Any]:
         """

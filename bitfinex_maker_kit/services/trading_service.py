@@ -74,22 +74,18 @@ class TradingService:
             amount_float = float(amount.value)
             price_float = float(price.value) if price else None
 
-            # Use client's submit_order method
+            # Use submit_order utility function
             from ..utilities.orders import submit_order
 
-            success, result = submit_order(
+            result = submit_order(
                 symbol=symbol_str,
                 amount=amount_float,
                 side=side,
                 price=price_float,
             )
 
-            if success:
-                logger.info(f"Order placed successfully: {result}")
-            else:
-                logger.error(f"Order placement failed: {result}")
-
-            return success, result
+            logger.info(f"Order placed successfully: {result}")
+            return True, result
 
         except Exception as e:
             logger.error(f"Error placing order: {e}")
