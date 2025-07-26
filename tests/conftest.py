@@ -89,7 +89,9 @@ def sample_symbol() -> Symbol:
 @pytest.fixture
 def paper_trading_symbol() -> Symbol:
     """Create paper trading symbol for integration tests."""
-    return Symbol("tTESTBTCTESTUSD")
+    # Use regular symbol that works in both paper trading and mock environments
+    # Paper trading supports regular symbols, and this avoids validation issues in CI
+    return Symbol("tBTCUSD")
 
 
 @pytest.fixture
