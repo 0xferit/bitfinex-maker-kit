@@ -19,11 +19,25 @@ class OrderId:
 
     value: int
     is_placeholder: bool = False
+    original_string: str | None = None  # Store original string for placeholder IDs
+
+    def __post_init__(self) -> None:
+        """Validate the OrderId after initialization."""
+        if self.value <= 0:
+            raise ValueError(f"Order ID must be positive, got: {self.value}")
+
+        # Validate real order IDs have proper range
+        if not self.is_placeholder and (self.value < 10000000 or self.value > 99999999):
+            raise ValueError(f"Order ID must be between 10000000 and 99999999, got: {self.value}")
 
     def __init__(self, value: int | str, is_placeholder: bool = False) -> None:
         """Create OrderId from various input types."""
         if value is None:
             raise ValueError("Order ID cannot be None")
+
+        processed_value: int
+        processed_is_placeholder: bool = is_placeholder
+        processed_original_string: str | None = None
 
         # Convert string to int if it's a valid numeric string
         if isinstance(value, str):
@@ -37,16 +51,15 @@ class OrderId:
                     raise ValueError(
                         f"Order ID must be between 10000000 and 99999999, got: {int_value}"
                     )
-
-                object.__setattr__(self, "value", int_value)
-                object.__setattr__(self, "is_placeholder", is_placeholder)
+                processed_value = int_value
+                processed_is_placeholder = False
+                processed_original_string = None
             elif is_placeholder:
-                # For placeholder IDs, store as string in a special way
-                # We'll use a negative hash as the int value to avoid conflicts
+                # For placeholder IDs, store the original string and use hash as int value
                 hash_value = abs(hash(value)) % 1000000000  # Ensure it's within reasonable range
-                object.__setattr__(self, "value", hash_value)
-                object.__setattr__(self, "is_placeholder", True)
-                object.__setattr__(self, "_original_string", value)
+                processed_value = hash_value
+                processed_is_placeholder = True
+                processed_original_string = value
             else:
                 raise ValueError(f"Invalid order ID format: {value}")
         elif isinstance(value, int):
@@ -54,11 +67,16 @@ class OrderId:
                 raise ValueError(f"Integer order ID must be positive, got: {value}")
             if not is_placeholder and (value < 10000000 or value > 99999999):
                 raise ValueError(f"Order ID must be between 10000000 and 99999999, got: {value}")
-
-            object.__setattr__(self, "value", value)
-            object.__setattr__(self, "is_placeholder", is_placeholder)
+            processed_value = value
+            processed_is_placeholder = is_placeholder
+            processed_original_string = None
         else:
             raise TypeError(f"Order ID must be int or str, got: {type(value)}")
+
+        # Use object.__setattr__ to set the frozen dataclass fields
+        object.__setattr__(self, "value", processed_value)
+        object.__setattr__(self, "is_placeholder", processed_is_placeholder)
+        object.__setattr__(self, "original_string", processed_original_string)
 
     @classmethod
     def from_exchange(cls, order_id: int | str) -> "OrderId":
@@ -105,7 +123,7 @@ class OrderId:
 
     def to_string(self) -> str:
         """Convert to string representation."""
-        return str(self.value)  # type: ignore[no-any-return]
+        return str(self.value)
 
     def to_int(self) -> int:
         """
@@ -135,12 +153,12 @@ class OrderId:
         Returns:
             Dict with parsed placeholder information, empty if not a placeholder
         """
-        if not self.is_placeholder or not isinstance(self.value, str):
+        if not self.is_placeholder or not self.original_string:
             return {}
 
         try:
             # Expected format: side_price_amount[_suffix]
-            parts = str(self.value).split("_")
+            parts = self.original_string.split("_")
             if len(parts) >= 3:
                 return {
                     "side": parts[0],
@@ -155,9 +173,9 @@ class OrderId:
 
     def __str__(self) -> str:
         """String representation."""
-        if self.is_placeholder and hasattr(self, "_original_string"):
-            return self._original_string  # type: ignore[no-any-return]
-        return str(self.value)  # type: ignore[no-any-return]
+        if self.is_placeholder and self.original_string:
+            return self.original_string
+        return str(self.value)
 
     def __eq__(self, other: object) -> bool:
         """Equality comparison."""
