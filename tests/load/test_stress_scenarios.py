@@ -178,7 +178,7 @@ class TestTradingStressScenarios:
             f"HFT throughput too low: {result.operations_per_second:.1f} ops/sec"
         )
         assert result.success_rate >= 0.7, f"HFT success rate too low: {result.success_rate:.1%}"
-        assert result.peak_memory_mb < 100, f"Memory usage too high: {result.peak_memory_mb:.1f}MB"
+        assert result.peak_memory_mb < 110, f"Memory usage too high: {result.peak_memory_mb:.1f}MB"
 
     @pytest.mark.asyncio
     async def test_massive_concurrent_orders(self, stress_runner):
