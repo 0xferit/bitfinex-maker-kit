@@ -5,6 +5,9 @@ This module provides a single point for client creation, replacing the duplicate
 try/except pattern found throughout the codebase.
 """
 
+from collections.abc import Callable
+from typing import Any
+
 from ..bitfinex_client import BitfinexClientWrapper
 from ..services.container import get_container
 from .auth import create_client
@@ -30,7 +33,8 @@ def get_client() -> BitfinexClientWrapper:
         return container.create_bitfinex_client()
     except Exception:
         # Fall back to legacy method for backward compatibility
-        return create_client()
+        # Type ignore because legacy create_client returns Any but we know it's BitfinexClientWrapper
+        return create_client()  # type: ignore[no-any-return]
 
 
 def get_client_safe() -> BitfinexClientWrapper | None:
@@ -52,7 +56,7 @@ def get_client_safe() -> BitfinexClientWrapper | None:
         return None
 
 
-def with_client(func):
+def with_client(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator that injects a client as the first argument to a function.
 
@@ -71,7 +75,7 @@ def with_client(func):
             return client.get_orders()
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         client = get_client_safe()
         if client is None:
             print("❌ Failed to create API client. Check your credentials.")

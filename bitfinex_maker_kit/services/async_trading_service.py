@@ -83,9 +83,8 @@ class AsyncTradingService:
         """Synchronous order placement wrapper."""
         from ..utilities.orders import submit_order
 
-        return submit_order(
-            symbol=symbol, amount=amount, side=side, price=price, client=self.client
-        )
+        success, result = submit_order(symbol=symbol, amount=amount, side=side, price=price)
+        return success, result
 
     async def cancel_order_async(self, order_id: OrderId) -> tuple[bool, Any]:
         """
@@ -101,13 +100,18 @@ class AsyncTradingService:
             logger.info(f"Cancelling order async: {order_id}")
 
             # Handle placeholder orders
-            if order_id.is_placeholder():
+            if order_id.is_placeholder_id():
                 logger.warning(f"Cannot cancel placeholder order: {order_id}")
                 return False, "Cannot cancel placeholder order"
 
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self.client.cancel_order, order_id.value)
+
+            def cancel_order_wrapper() -> Any:
+                order_id_int = order_id.to_int()
+                return self.client.cancel_order(order_id_int)
+
+            result = await loop.run_in_executor(None, cancel_order_wrapper)
 
             logger.info(f"Order cancellation result: {result}")
             return True, result
@@ -127,14 +131,16 @@ class AsyncTradingService:
             List of active orders
         """
         try:
-            symbol_str = str(symbol) if symbol else None
-
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            orders = await loop.run_in_executor(None, self.client.get_orders, symbol_str)
+
+            def get_orders_wrapper() -> list[Any]:
+                return self.client.get_orders()
+
+            orders = await loop.run_in_executor(None, get_orders_wrapper)
 
             logger.debug(f"Retrieved {len(orders)} orders async")
-            return orders
+            return list(orders)
 
         except Exception as e:
             logger.error(f"Error retrieving orders async: {e}")
@@ -149,16 +155,21 @@ class AsyncTradingService:
         """
         try:
             loop = asyncio.get_event_loop()
-            balances = await loop.run_in_executor(None, self.client.get_wallets)
+
+            def get_wallets_wrapper() -> list[Any]:
+                result = self.client.get_wallets()
+                return list(result) if result is not None else []
+
+            balances = await loop.run_in_executor(None, get_wallets_wrapper)
 
             logger.debug(f"Retrieved {len(balances)} wallet entries async")
-            return balances
+            return list(balances)
 
         except Exception as e:
             logger.error(f"Error retrieving wallet balances async: {e}")
             return []
 
-    async def get_ticker_async(self, symbol: Symbol) -> dict[str, Any] | None:
+    async def get_ticker_async(self, symbol: Symbol) -> dict[str, float] | None:
         """
         Get ticker data for a symbol asynchronously.
 
@@ -179,7 +190,10 @@ class AsyncTradingService:
             else:
                 logger.warning(f"No ticker data async for {symbol}")
 
-            return ticker
+            if ticker:
+                # Return the ticker data directly since get_ticker_data returns appropriate type
+                return ticker
+            return None
 
         except Exception as e:
             logger.error(f"Error retrieving ticker async for {symbol}: {e}")
@@ -210,7 +224,7 @@ class AsyncTradingService:
             logger.info(f"Updating order async: {order_id}")
 
             # Handle placeholder orders
-            if order_id.is_placeholder():
+            if order_id.is_placeholder_id():
                 logger.warning(f"Cannot update placeholder order: {order_id}")
                 return False, "Cannot update placeholder order"
 
@@ -221,24 +235,26 @@ class AsyncTradingService:
 
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                self.client.update_order,
-                order_id.value,
-                price_float,
-                amount_float,
-                delta_float,
-                use_cancel_recreate,
-            )
 
-            success, result_data = result
+            def update_order_wrapper() -> Any:
+                order_id_int = order_id.to_int()
+                return self.client.update_order(
+                    order_id=order_id_int,
+                    price=price_float,
+                    amount=amount_float,
+                    delta=delta_float,
+                    use_cancel_recreate=use_cancel_recreate,
+                )
 
-            if success:
-                logger.info(f"Order updated successfully async: {result_data}")
+            result = await loop.run_in_executor(None, update_order_wrapper)
+
+            # Client returns dict result, convert to tuple format
+            if result and "status" in result and result["status"] == "SUCCESS":
+                logger.info(f"Order updated successfully async: {result}")
+                return True, result
             else:
-                logger.error(f"Order update failed async: {result_data}")
-
-            return result
+                logger.error(f"Order update failed async: {result}")
+                return False, result
 
         except Exception as e:
             logger.error(f"Error updating order async {order_id}: {e}")
@@ -386,13 +402,15 @@ class AsyncTradingService:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        processed_results = []
+        processed_results: list[tuple[bool, Any]] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Order {i + 1} failed with exception: {result}")
                 processed_results.append((False, str(result)))
-            else:
+            elif isinstance(result, tuple) and len(result) == 2:
                 processed_results.append(result)
+            else:
+                processed_results.append((False, str(result)))
 
         successful_orders = sum(1 for success, _ in processed_results if success)
         logger.info(f"Batch order placement complete: {successful_orders}/{len(orders)} successful")
@@ -424,13 +442,15 @@ class AsyncTradingService:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        processed_results = []
+        processed_results: list[tuple[bool, Any]] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Cancellation {i + 1} failed with exception: {result}")
                 processed_results.append((False, str(result)))
-            else:
+            elif isinstance(result, tuple) and len(result) == 2:
                 processed_results.append(result)
+            else:
+                processed_results.append((False, str(result)))
 
         successful_cancellations = sum(1 for success, _ in processed_results if success)
         logger.info(

@@ -5,6 +5,7 @@ Centralizes all trading-related configuration including defaults,
 validation rules, and API settings.
 """
 
+import contextlib
 import os
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -77,7 +78,7 @@ class TradingConfig:
     # Environment Overrides
     environment_overrides: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         self._validate_configuration()
         self._apply_environment_overrides()
@@ -121,15 +122,18 @@ class TradingConfig:
         """Apply environment variable overrides."""
         # API timeout
         if timeout := os.getenv("MAKER_KIT_API_TIMEOUT"):
-            try:
+            with contextlib.suppress(ValueError):
                 self.api_timeout_seconds = int(timeout)
-            except ValueError:
-                pass  # Ignore invalid values
 
         # Log level
-        if log_level := os.getenv("MAKER_KIT_LOG_LEVEL"):
-            if log_level.upper() in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-                self.log_level = log_level.upper()
+        if (log_level := os.getenv("MAKER_KIT_LOG_LEVEL")) and log_level.upper() in [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL",
+        ]:
+            self.log_level = log_level.upper()
 
         # Dry run mode
         if dry_run := os.getenv("MAKER_KIT_DRY_RUN"):

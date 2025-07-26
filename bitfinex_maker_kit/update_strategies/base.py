@@ -24,7 +24,7 @@ class OrderUpdateRequest:
     amount: Decimal | None = None  # Always positive
     delta: Decimal | None = None  # Can be positive or negative
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate the update request."""
         if self.order_id <= 0:
             raise ValueError("Order ID must be positive")

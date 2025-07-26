@@ -47,7 +47,7 @@ A professional, production-ready command-line interface for automated trading an
 ### Core Architecture Components
 
 #### 🎯 **Command Layer** (`commands/`)
-- **Individual Commands**: `test`, `wallet`, `list`, `cancel`, `put`, `market-make`, `auto-market-make`, `fill-spread`, `clear`, `update`
+- **Individual Commands**: `test`, `wallet`, `list`, `cancel`, `put`, `market-make`, `fill-spread`, `clear`, `update`
 - **Core Abstractions**: `core/` with base commands, executors, and result handling
 - **Extensible Design**: Plugin-style command architecture
 
@@ -154,7 +154,7 @@ maker-kit --help
 maker-kit market-make --symbol tBTCUSD --levels 5 --spread 1.0 --size 0.1
 
 # Start automated market making
-maker-kit auto-market-make --symbol tBTCUSD --duration 3600
+maker-kit market-make --symbol tBTCUSD --levels 5
 
 # Fill spread gaps
 maker-kit fill-spread --symbol tETHUSD --levels 10
@@ -202,7 +202,6 @@ maker-kit cancel --symbol tBTCUSD --side buy
 | `cancel` | Cancel orders | Bulk operations, criteria matching, dry-run support |
 | `put` | Place single order | Domain validation, order builder pattern |
 | `market-make` | Create staircase orders | Strategy-based generation, symmetric placement |
-| `auto-market-make` | Automated market making | Real-time adjustment, WebSocket integration, UI console |
 | `fill-spread` | Fill bid-ask gaps | Market data analysis, intelligent spacing |
 | `clear` | Clear all orders | Emergency operations, confirmation workflows |
 | `update` | Update existing orders | Multiple update strategies, WebSocket optimization |
@@ -319,10 +318,10 @@ bandit -r bitfinex_maker_kit/  # Security scan
 ### Using Performance Tools
 ```bash
 # Enable performance monitoring in commands
-maker-kit auto-market-make --enable-monitoring
+maker-kit market-make --enable-monitoring
 
 # View performance metrics (via dashboard integration)
-# Dashboard accessible through auto-market-make UI console
+# Dashboard accessible through market-make UI console
 
 # Load testing and benchmarks
 pytest tests/performance/ --benchmark-json=results.json

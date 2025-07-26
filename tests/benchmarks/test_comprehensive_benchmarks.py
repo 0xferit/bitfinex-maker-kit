@@ -15,6 +15,7 @@ from typing import Any
 
 import psutil
 import pytest
+import pytest_asyncio
 
 from bitfinex_maker_kit.domain.amount import Amount
 from bitfinex_maker_kit.domain.order_id import OrderId
@@ -194,7 +195,7 @@ class BenchmarkRunner:
             raise ValueError(f"Unsupported format: {format}")
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestDomainObjectBenchmarks:
     """Benchmark tests for domain objects."""
 
@@ -203,6 +204,7 @@ class TestDomainObjectBenchmarks:
         """Create benchmark runner."""
         return BenchmarkRunner()
 
+    @pytest.mark.asyncio
     async def test_symbol_creation_benchmark(self, benchmark_runner):
         """Benchmark symbol creation performance."""
         symbols = ["tBTCUSD", "tETHUSD", "tPNKUSD", "tLTCUSD", "tXRPUSD"]
@@ -229,6 +231,7 @@ class TestDomainObjectBenchmarks:
             f"Symbol creation success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_price_arithmetic_benchmark(self, benchmark_runner):
         """Benchmark price arithmetic operations."""
         base_prices = [Price(str(i * 1000)) for i in range(1, 101)]
@@ -260,6 +263,7 @@ class TestDomainObjectBenchmarks:
             f"Average price arithmetic time too high: {result.avg_time_per_op * 1000:.2f}ms"
         )
 
+    @pytest.mark.asyncio
     async def test_amount_operations_benchmark(self, benchmark_runner):
         """Benchmark amount operations."""
         amounts = [Amount(str(i * 0.1)) for i in range(1, 101)]
@@ -284,6 +288,7 @@ class TestDomainObjectBenchmarks:
             f"Amount operations too slow: {result.operations_per_second:.1f} ops/sec"
         )
 
+    @pytest.mark.asyncio
     async def test_order_id_operations_benchmark(self, benchmark_runner):
         """Benchmark order ID operations."""
         order_ids = [OrderId(10000000 + i) for i in range(1000)]
@@ -308,7 +313,7 @@ class TestDomainObjectBenchmarks:
         )
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestTradingServiceBenchmarks:
     """Benchmark tests for trading service operations."""
 
@@ -322,6 +327,7 @@ class TestTradingServiceBenchmarks:
         """Create trading service for benchmarking."""
         return create_mock_trading_service("normal")
 
+    @pytest.mark.asyncio
     async def test_order_placement_benchmark(self, benchmark_runner, trading_service):
         """Benchmark order placement performance."""
         counter = 0
@@ -355,6 +361,7 @@ class TestTradingServiceBenchmarks:
             f"Order placement success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_order_cancellation_benchmark(self, benchmark_runner, trading_service):
         """Benchmark order cancellation performance."""
         # Pre-place orders to cancel
@@ -404,13 +411,14 @@ class TestTradingServiceBenchmarks:
             f"Order cancellation success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_batch_order_benchmark(self, benchmark_runner, trading_service):
         """Benchmark batch order operations."""
         batch_sizes = [5, 10, 20, 50]
 
         for batch_size in batch_sizes:
 
-            async def place_batch_orders():
+            async def place_batch_orders(batch_size=batch_size):
                 orders = []
                 for i in range(batch_size):
                     orders.append(
@@ -438,13 +446,14 @@ class TestTradingServiceBenchmarks:
                 f"Batch order placement (size {batch_size}) too slow: {result.operations_per_second:.1f} ops/sec"
             )
 
+    @pytest.mark.asyncio
     async def test_concurrent_trading_benchmark(self, benchmark_runner, trading_service):
         """Benchmark concurrent trading operations."""
         concurrent_levels = [5, 10, 20]
 
         for concurrency in concurrent_levels:
 
-            async def concurrent_operations():
+            async def concurrent_operations(concurrency=concurrency):
                 async def single_operation(op_id):
                     return await trading_service.place_order(
                         symbol=Symbol("tBTCUSD"),
@@ -471,7 +480,7 @@ class TestTradingServiceBenchmarks:
             )
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestCacheBenchmarks:
     """Benchmark tests for cache operations."""
 
@@ -480,13 +489,14 @@ class TestCacheBenchmarks:
         """Create benchmark runner."""
         return BenchmarkRunner()
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def cache_service(self):
         """Create cache service for benchmarking."""
         cache = create_mock_cache_service("normal")
         yield cache
         await cache.cleanup()
 
+    @pytest.mark.asyncio
     async def test_cache_set_benchmark(self, benchmark_runner, cache_service):
         """Benchmark cache set operations."""
         counter = 0
@@ -509,6 +519,7 @@ class TestCacheBenchmarks:
             f"Cache set success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_cache_get_benchmark(self, benchmark_runner, cache_service):
         """Benchmark cache get operations."""
         # Pre-populate cache
@@ -536,6 +547,7 @@ class TestCacheBenchmarks:
             f"Cache get success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_cache_get_or_set_benchmark(self, benchmark_runner, cache_service):
         """Benchmark cache get_or_set operations."""
         counter = 0
@@ -563,6 +575,7 @@ class TestCacheBenchmarks:
             f"Cache get_or_set success rate too low: {result.success_rate:.3f}"
         )
 
+    @pytest.mark.asyncio
     async def test_cache_mixed_operations_benchmark(self, benchmark_runner, cache_service):
         """Benchmark mixed cache operations."""
         counter = 0
@@ -603,7 +616,7 @@ class TestCacheBenchmarks:
         )
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestMemoryBenchmarks:
     """Benchmark tests for memory efficiency."""
 
@@ -612,6 +625,7 @@ class TestMemoryBenchmarks:
         """Create benchmark runner."""
         return BenchmarkRunner()
 
+    @pytest.mark.asyncio
     async def test_domain_object_memory_benchmark(self, benchmark_runner):
         """Benchmark memory usage of domain objects."""
         objects_created = []
@@ -647,6 +661,7 @@ class TestMemoryBenchmarks:
             f"Domain object creation too slow: {result.operations_per_second:.1f} ops/sec"
         )
 
+    @pytest.mark.asyncio
     async def test_cache_memory_efficiency_benchmark(self, benchmark_runner):
         """Benchmark cache memory efficiency."""
         cache_service = create_mock_cache_service("normal")
@@ -677,7 +692,7 @@ class TestMemoryBenchmarks:
             await cache_service.cleanup()
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestRegressionBenchmarks:
     """Benchmark tests for performance regression detection."""
 
@@ -686,6 +701,7 @@ class TestRegressionBenchmarks:
         """Create benchmark runner."""
         return BenchmarkRunner()
 
+    @pytest.mark.asyncio
     async def test_performance_regression_detection(self, benchmark_runner):
         """Test for performance regression using baseline metrics."""
         fixtures = PerformanceFixtures()
@@ -724,6 +740,7 @@ class TestRegressionBenchmarks:
             f"vs baseline {baseline_throughput:.1f} ops/sec"
         )
 
+    @pytest.mark.asyncio
     async def test_cache_performance_regression(self, benchmark_runner):
         """Test for cache performance regression."""
         cache_service = create_mock_cache_service("normal")
@@ -769,7 +786,7 @@ class TestRegressionBenchmarks:
             await cache_service.cleanup()
 
 
-@pytest.mark.load
+@pytest.mark.benchmark
 class TestComprehensiveBenchmarkSuite:
     """Comprehensive benchmark suite for full system testing."""
 
@@ -778,6 +795,7 @@ class TestComprehensiveBenchmarkSuite:
         """Create benchmark runner."""
         return BenchmarkRunner()
 
+    @pytest.mark.asyncio
     async def test_full_system_benchmark(self, benchmark_runner):
         """Run comprehensive system benchmark."""
         trading_service = create_mock_trading_service("normal")
@@ -838,6 +856,7 @@ class TestComprehensiveBenchmarkSuite:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_stress_benchmark_suite(self, benchmark_runner):
         """Run stress test benchmark suite."""
         # Test different load levels
@@ -851,7 +870,7 @@ class TestComprehensiveBenchmarkSuite:
 
         for load_config in load_levels:
 
-            async def stress_operation():
+            async def stress_operation(load_config=load_config):
                 """Stress test operation."""
 
                 # Concurrent order placements
@@ -884,6 +903,7 @@ class TestComprehensiveBenchmarkSuite:
                 f"Stress test {load_config['name']} performance too low: {result.operations_per_second:.1f} ops/sec"
             )
 
+    @pytest.mark.asyncio
     async def test_benchmark_export_functionality(self, benchmark_runner):
         """Test benchmark result export functionality."""
 

@@ -8,8 +8,6 @@ separation of concerns.
 
 from typing import Any
 
-from bfxapi.types import Order
-
 from ..utilities.constants import OrderSide, OrderSubmissionError
 from .api_client import BitfinexAPIClient, create_api_client
 from .order_update_service import OrderUpdateService
@@ -24,14 +22,14 @@ class TradingFacade:
     of concerns and maintainability.
     """
 
-    def __init__(self, api_key: str, api_secret: str):
+    def __init__(self, api_key: str, api_secret: str) -> None:
         """Initialize trading facade with API credentials."""
         self.api_client = create_api_client(api_key, api_secret)
         self.order_update_service = OrderUpdateService(self.api_client)
 
     def submit_order(
         self, symbol: str, side: str | OrderSide, amount: float, price: float | None = None
-    ) -> dict:
+    ) -> Any:
         """
         Submit order with ENFORCED POST_ONLY for limit orders.
 
@@ -39,15 +37,15 @@ class TradingFacade:
         """
         return self.api_client.submit_order(symbol, side, amount, price)
 
-    def get_orders(self) -> list[Order]:
+    def get_orders(self) -> list[Any]:
         """Get all active orders."""
         return self.api_client.get_orders()
 
-    def cancel_order(self, order_id: int) -> dict:
+    def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
         return self.api_client.cancel_order(order_id)
 
-    def cancel_order_multi(self, order_ids: list[int]) -> dict:
+    def cancel_order_multi(self, order_ids: list[int]) -> Any:
         """Cancel multiple orders by IDs."""
         return self.api_client.cancel_order_multi(order_ids)
 
@@ -84,20 +82,20 @@ class TradingFacade:
             # For failed updates, raise an exception with the error message
             raise OrderSubmissionError(result.message)
 
-    def get_wallets(self) -> list[dict]:
+    def get_wallets(self) -> Any:
         """Get wallet balances."""
         return self.api_client.get_wallets()
 
-    def get_ticker(self, symbol: str) -> dict:
+    def get_ticker(self, symbol: str) -> Any:
         """Get ticker data for symbol."""
         return self.api_client.get_ticker(symbol)
 
-    def get_trades(self, symbol: str, limit: int = 1) -> list[dict]:
+    def get_trades(self, symbol: str, limit: int = 1) -> Any:
         """Get recent trades for symbol."""
         return self.api_client.get_trades(symbol, limit)
 
     @property
-    def wss(self):
+    def wss(self) -> Any:
         """Access to WebSocket interface for real-time data."""
         return self.api_client.wss
 

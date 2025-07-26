@@ -58,6 +58,15 @@ class CancelRecreateStrategy(OrderUpdateStrategy):
         new_price = float(request.price) if request.price else current_price
         new_amount = float(request.calculate_new_amount(Decimal(str(current_order.amount))))
 
+        # Validate that we have a valid price
+        if new_price is None:
+            return OrderUpdateResult(
+                success=False,
+                method="validation_error",
+                order_id=request.order_id,
+                message="Cannot update order: no price specified and current order has no price",
+            )
+
         symbol = current_order.symbol
         side = "sell" if is_sell_order else "buy"
 
@@ -107,7 +116,7 @@ class CancelRecreateStrategy(OrderUpdateStrategy):
         if amount <= 0:
             raise ValueError(f"Amount must be positive, got: {amount}")
 
-        if price is not None and price <= 0:
+        if price <= 0:
             raise ValueError(f"Price must be positive, got: {price}")
 
         if side.lower() not in ["buy", "sell"]:
@@ -150,7 +159,7 @@ class CancelRecreateStrategy(OrderUpdateStrategy):
                     if attempt == max_retries - 1:
                         raise OrderSubmissionError(
                             f"Failed to cancel order after {max_retries} attempts: {e}"
-                        )
+                        ) from e
                     else:
                         logger.warning(f"Cancel attempt {attempt + 1} failed: {e}")
 
@@ -197,7 +206,7 @@ class CancelRecreateStrategy(OrderUpdateStrategy):
                     if attempt == max_retries - 1:
                         raise OrderSubmissionError(
                             f"Order recreation failed after {max_retries} attempts: {e}"
-                        )
+                        ) from e
                     else:
                         logger.warning(f"Create attempt {attempt + 1} failed: {e}")
 

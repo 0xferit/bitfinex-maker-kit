@@ -25,9 +25,9 @@ class CommandContext:
     dry_run: bool = False
     user_confirmation_required: bool = True
     timeout_seconds: float | None = None
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize context."""
         if self.metadata is None:
             self.metadata = {}
@@ -41,7 +41,7 @@ class Command(ABC):
     CLI presentation, enabling validation, execution, and undo operations.
     """
 
-    def __init__(self, name: str, description: str = ""):
+    def __init__(self, name: str, description: str = "") -> None:
         """
         Initialize command.
 
@@ -230,7 +230,7 @@ class TransactionalCommand(Command):
     These commands typically require confirmation and may support undo.
     """
 
-    def __init__(self, name: str, description: str = "", supports_undo: bool = False):
+    def __init__(self, name: str, description: str = "", supports_undo: bool = False) -> None:
         """
         Initialize transactional command.
 
@@ -258,7 +258,7 @@ class BatchCommand(Command):
     Provides support for batch execution with partial failure handling.
     """
 
-    def __init__(self, name: str, description: str = "", fail_fast: bool = True):
+    def __init__(self, name: str, description: str = "", fail_fast: bool = True) -> None:
         """
         Initialize batch command.
 

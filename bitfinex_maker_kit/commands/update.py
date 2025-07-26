@@ -22,7 +22,7 @@ def update_single_order(
     dry_run: bool = False,
     yes: bool = False,
     use_cancel_recreate: bool = False,
-):
+) -> None:
     """Update a single order by ID."""
 
     # Build description of changes
@@ -98,7 +98,7 @@ def update_orders_by_criteria(
     dry_run: bool = False,
     yes: bool = False,
     use_cancel_recreate: bool = False,
-):
+) -> None:
     """Update orders matching specific criteria (size, direction, symbol)."""
 
     # Build description of criteria
@@ -130,7 +130,7 @@ def update_orders_by_criteria(
     from ..services.container import get_container
 
     container = get_container()
-    client = container.create_wrapper_client()
+    client = container.create_bitfinex_client()
     try:
         all_orders = client.get_orders()
         if filter_symbol:
@@ -186,8 +186,8 @@ def update_orders_by_criteria(
         current_amount = float(order.amount)  # Renamed to avoid shadowing the function parameter
         side = "BUY" if current_amount > 0 else "SELL"
         amount_abs = abs(current_amount)
-        price = order.price if order.price else "MARKET"
-        price_str = f"${float(price):.6f}" if price != "MARKET" else "MARKET"
+        price_val = order.price if order.price else None
+        price_str = f"${float(price_val):.6f}" if price_val is not None else "MARKET"
 
         print(
             f"{order_id:<12} {order_symbol:<10} {order_type:<15} {side:<4} {amount_abs:<15.6f} {price_str:<15}"
@@ -241,9 +241,13 @@ def update_orders_by_criteria(
                 print(f"   ✅ Successfully updated order {order_id}")
 
                 # Show new order ID if available
-                if isinstance(result, dict) and result.get("method") == "cancel_recreate":
-                    if "new_order" in result and hasattr(result["new_order"], "id"):
-                        print(f"   📋 New order ID: {result['new_order'].id}")
+                if (
+                    isinstance(result, dict)
+                    and result.get("method") == "cancel_recreate"
+                    and "new_order" in result
+                    and hasattr(result["new_order"], "id")
+                ):
+                    print(f"   📋 New order ID: {result['new_order'].id}")
             else:
                 failed_updates += 1
                 print(f"   ❌ Failed to update order {order_id}: {result}")
@@ -274,7 +278,7 @@ def update_command(
     dry_run: bool = False,
     yes: bool = False,
     use_cancel_recreate: bool = False,
-):
+) -> None:
     """Update existing orders - either single order by ID or multiple orders by criteria."""
 
     # Show information about update methods if not using cancel-recreate

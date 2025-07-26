@@ -188,7 +188,7 @@ class TestArchitecturalEnforcement(unittest.TestCase):
         """
 
         # Test that other modules import submit_order
-        from maker_kit import auto_market_maker, market_making, orders
+        from maker_kit import market_making, orders
 
         # These modules should import submit_order
         self.assertTrue(
@@ -203,11 +203,7 @@ class TestArchitecturalEnforcement(unittest.TestCase):
             "submit_order", market_making_source, "market_making should import submit_order"
         )
 
-        # Check that auto_market_maker imports submit_order
-        auto_mm_source = inspect.getsource(auto_market_maker)
-        self.assertIn(
-            "submit_order", auto_mm_source, "auto_market_maker should import submit_order"
-        )
+        # auto_market_maker has been removed - skip this check
 
     def test_no_duplicate_order_submission_logic(self):
         """
@@ -217,7 +213,7 @@ class TestArchitecturalEnforcement(unittest.TestCase):
         """
         import inspect
 
-        from maker_kit import auto_market_maker, market_making
+        from maker_kit import market_making
 
         # These modules should NOT have direct client.rest.auth.submit_order calls
         market_making_source = inspect.getsource(market_making)
@@ -227,12 +223,7 @@ class TestArchitecturalEnforcement(unittest.TestCase):
             "market_making should not have direct order submission",
         )
 
-        auto_mm_source = inspect.getsource(auto_market_maker)
-        self.assertNotIn(
-            "client.rest.auth.submit_order",
-            auto_mm_source,
-            "auto_market_maker should not have direct order submission",
-        )
+        # auto_market_maker has been removed - skip this check
 
     def test_submit_order_function_documentation(self):
         """Test that submit_order documents its wrapper usage"""

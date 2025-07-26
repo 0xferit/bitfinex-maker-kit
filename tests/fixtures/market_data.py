@@ -8,7 +8,7 @@ of market data processing, caching, and trading operations.
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -208,9 +208,9 @@ class MarketDataFixtures:
     market conditions and edge cases.
     """
 
-    SYMBOLS = ["tBTCUSD", "tETHUSD", "tPNKUSD", "tLTCUSD", "tXRPUSD"]
+    SYMBOLS: ClassVar[list[str]] = ["tBTCUSD", "tETHUSD", "tPNKUSD", "tLTCUSD", "tXRPUSD"]
 
-    BASE_PRICES = {
+    BASE_PRICES: ClassVar[dict[str, float]] = {
         "tBTCUSD": 50000.0,
         "tETHUSD": 3000.0,
         "tPNKUSD": 0.5,

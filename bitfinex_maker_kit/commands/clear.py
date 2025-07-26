@@ -9,7 +9,7 @@ from ..utilities.display_helpers import display_preparation_list
 from ..utilities.order_fetcher import fetch_orders_by_symbol, get_order_ids
 
 
-def clear_command(symbol: str = DEFAULT_SYMBOL):
+def clear_command(symbol: str = DEFAULT_SYMBOL) -> None:
     """Clear all orders for a specific symbol"""
     print(f"Getting active orders for {symbol}...")
 

@@ -7,6 +7,7 @@ of order update requests with clear error messages.
 
 import logging
 from decimal import Decimal
+from typing import Any
 
 from ..update_strategies.base import OrderUpdateRequest
 
@@ -63,7 +64,7 @@ class OrderUpdateValidator:
             logger.error(f"Update request validation failed for order {order_id}: {e}")
             raise ValueError(f"Invalid update parameters: {e}") from e
 
-    def validate_order_exists(self, order_id: int, order_list: list) -> any:
+    def validate_order_exists(self, order_id: int, order_list: list[Any]) -> Any:
         """
         Validate that an order exists in the given order list.
 
@@ -87,7 +88,7 @@ class OrderUpdateValidator:
         logger.warning(f"Order {order_id} not found in active orders")
         raise ValueError(f"Order {order_id} not found")
 
-    def validate_order_state(self, order: any) -> None:
+    def validate_order_state(self, order: Any) -> None:
         """
         Validate that an order is in a state that allows updates.
 
@@ -111,8 +112,8 @@ class OrderUpdateValidator:
             current_amount = float(order.amount)
             if current_amount == 0:
                 raise ValueError(f"Order {order.id} has zero amount, cannot update")
-        except (ValueError, TypeError):
-            raise ValueError(f"Order {order.id} has invalid amount: {order.amount}")
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Order {order.id} has invalid amount: {order.amount}") from e
 
         # Validate order price (can be None for market orders)
         if order.price is not None:
@@ -120,13 +121,13 @@ class OrderUpdateValidator:
                 current_price = float(order.price)
                 if current_price <= 0:
                     raise ValueError(f"Order {order.id} has invalid price: {order.price}")
-            except (ValueError, TypeError):
-                raise ValueError(f"Order {order.id} has invalid price format: {order.price}")
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Order {order.id} has invalid price format: {order.price}") from e
 
         logger.debug(f"Order {order.id} state validation passed")
 
     def validate_new_amount_calculation(
-        self, request: OrderUpdateRequest, current_order: any
+        self, request: OrderUpdateRequest, current_order: Any
     ) -> Decimal:
         """
         Validate and calculate the new amount for the order.
@@ -155,7 +156,7 @@ class OrderUpdateValidator:
             logger.error(f"Amount calculation failed for order {request.order_id}: {e}")
             raise ValueError(f"Failed to calculate new amount: {e}") from e
 
-    def validate_new_price(self, request: OrderUpdateRequest, current_order: any) -> float | None:
+    def validate_new_price(self, request: OrderUpdateRequest, current_order: Any) -> float | None:
         """
         Validate and determine the new price for the order.
 
@@ -170,6 +171,8 @@ class OrderUpdateValidator:
             ValueError: If price is invalid
         """
         if request.has_price_update():
+            if request.price is None:
+                raise ValueError("Price update requested but price is None")
             new_price = float(request.price)
             if new_price <= 0:
                 raise ValueError(f"New price must be positive: {new_price}")

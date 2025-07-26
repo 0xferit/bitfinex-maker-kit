@@ -63,12 +63,12 @@ class AsyncEventLoopManager:
         self.tasks_completed = 0
         self.tasks_cancelled = 0
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AsyncEventLoopManager":
         """Async context manager entry."""
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.shutdown()
 
@@ -126,7 +126,7 @@ class AsyncEventLoopManager:
             logger.error(f"Error during event loop shutdown: {e}")
             raise
 
-    def create_task(self, coro, name: str | None = None) -> asyncio.Task:
+    def create_task(self, coro: Any, name: str | None = None) -> asyncio.Task[Any]:
         """
         Create and track a background task.
 
@@ -226,24 +226,24 @@ class AsyncEventLoopManager:
         for sig in signals:
             try:
                 # Store original handler
-                self._original_handlers[sig] = signal.signal(sig, self._signal_handler)
-                logger.debug(f"Registered signal handler for {sig.name}")
+                self._original_handlers[sig] = signal.signal(sig, self._signal_handler)  # type: ignore[arg-type]
+                logger.debug(f"Registered signal handler for {sig.name}")  # type: ignore[attr-defined]
             except ValueError as e:
                 # Signal not available on this platform
-                logger.debug(f"Could not register handler for {sig.name}: {e}")
+                logger.debug(f"Could not register handler for {sig.name}: {e}")  # type: ignore[attr-defined]
 
     def _restore_signal_handlers(self) -> None:
         """Restore original signal handlers."""
         for sig, handler in self._original_handlers.items():
             try:
                 signal.signal(sig, handler)
-                logger.debug(f"Restored signal handler for {sig.name}")
+                logger.debug(f"Restored signal handler for {sig.name}")  # type: ignore[attr-defined]
             except ValueError as e:
-                logger.debug(f"Could not restore handler for {sig.name}: {e}")
+                logger.debug(f"Could not restore handler for {sig.name}: {e}")  # type: ignore[attr-defined]
 
         self._original_handlers.clear()
 
-    def _signal_handler(self, signum: int, frame) -> None:
+    def _signal_handler(self, signum: int, frame: Any) -> None:
         """Handle shutdown signals."""
         if self.shutdown_requested:
             logger.warning(f"Received signal {signum} during shutdown - forcing exit")
@@ -290,7 +290,7 @@ class AsyncEventLoopManager:
 
 
 @asynccontextmanager
-async def managed_event_loop(config: EventLoopConfig | None = None):
+async def managed_event_loop(config: EventLoopConfig | None = None) -> Any:
     """
     Async context manager for event loop lifecycle.
 
@@ -326,7 +326,7 @@ class AutoMarketMakerEventLoop:
         event_loop_config: EventLoopConfig | None = None,
     ):
         """
-        Initialize auto market maker event loop.
+        Initialize market maker event loop.
 
         Args:
             connection_manager: WebSocket connection manager

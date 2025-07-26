@@ -10,7 +10,7 @@ from typing import Any
 from .formatters import format_price, format_timestamp
 
 
-def format_order_table_row(order, show_created: bool = True) -> str:
+def format_order_table_row(order: Any, show_created: bool = True) -> str:
     """
     Format a single order as a table row.
 
@@ -64,7 +64,7 @@ def display_order_table(orders: list, title: str = "Orders", show_created: bool 
     print("─" * 80)
 
     # Sort orders by price (lowest to highest), with market orders at the end
-    def sort_key(order):
+    def sort_key(order: Any) -> float:
         if order.price is None:
             return float("inf")  # Market orders go to the end
         return float(order.price)
@@ -91,7 +91,7 @@ def display_orders_by_symbol(orders: list, show_created: bool = True) -> None:
         return
 
     # Group orders by symbol
-    orders_by_symbol = {}
+    orders_by_symbol: dict[str, list[Any]] = {}
     for order in orders:
         symbol = order.symbol
         if symbol not in orders_by_symbol:
@@ -128,11 +128,11 @@ def format_summary_stats(orders: list) -> dict[str, Any]:
 
     buy_orders = []
     sell_orders = []
-    total_buy_amount = 0
-    total_sell_amount = 0
-    total_buy_value = 0
-    total_sell_value = 0
-    order_types = {}
+    total_buy_amount = 0.0
+    total_sell_amount = 0.0
+    total_buy_value = 0.0
+    total_sell_value = 0.0
+    order_types: dict[str, int] = {}
     symbols = set()
 
     for order in orders:

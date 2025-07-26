@@ -80,10 +80,10 @@ class CommandResult:
     data: Any | None = None
     error_message: str | None = None
     execution_time: float | None = None
-    timestamp: datetime = None
-    metadata: dict[str, Any] = None
+    timestamp: datetime | None = None
+    metadata: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize result with timestamp if not provided."""
         if self.timestamp is None:
             self.timestamp = datetime.utcnow()
@@ -108,10 +108,14 @@ class CommandResult:
 
     def add_metadata(self, key: str, value: Any) -> None:
         """Add metadata to the result."""
+        if self.metadata is None:
+            self.metadata = {}
         self.metadata[key] = value
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata value by key."""
+        if self.metadata is None:
+            return default
         return self.metadata.get(key, default)
 
     @classmethod
@@ -120,10 +124,15 @@ class CommandResult:
         return cls(status=CommandStatus.SUCCESS, data=data, execution_time=execution_time)
 
     @classmethod
-    def failure(cls, error_message: str, execution_time: float | None = None) -> "CommandResult":
+    def failure(
+        cls, error_message: str, execution_time: float | None = None, data: Any = None
+    ) -> "CommandResult":
         """Create a failed command result."""
         return cls(
-            status=CommandStatus.FAILED, error_message=error_message, execution_time=execution_time
+            status=CommandStatus.FAILED,
+            error_message=error_message,
+            execution_time=execution_time,
+            data=data,
         )
 
     @classmethod

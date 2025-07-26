@@ -1,8 +1,13 @@
 """
-Central trading service for Maker-Kit.
+Central trading service for Maker-Kit - SAFETY FIRST ARCHITECTURE.
 
-Provides a high-level interface for all trading operations,
-abstracting the underlying Bitfinex client implementation.
+TRADING SAFETY PRINCIPLES:
+- ALL ORDERS ARE POST_ONLY (architecturally enforced, cannot be bypassed)
+- NO CACHING of prices, balances, or order states (prevents stale data losses)
+- LIVE DATA ONLY for all trading decisions (performance cost acceptable)
+- PREDICTABLE EXECUTION through maker orders only
+
+Provides a high-level interface for all trading operations with maximum safety.
 """
 
 import logging
@@ -76,7 +81,6 @@ class TradingService:
                 amount=amount_float,
                 side=side,
                 price=price_float,
-                client=self.client,
             )
 
             if success:
@@ -104,12 +108,13 @@ class TradingService:
             logger.info(f"Cancelling order {order_id}")
 
             # Handle placeholder orders
-            if order_id.is_placeholder():
+            if order_id.is_placeholder_id():
                 logger.warning(f"Cannot cancel placeholder order: {order_id}")
                 return False, "Cannot cancel placeholder order"
 
             # Use client's cancel method
-            result = self.client.cancel_order(order_id.value)
+            order_id_int = order_id.to_int()
+            result = self.client.cancel_order(order_id_int)
 
             logger.info(f"Order cancellation result: {result}")
             return True, result
@@ -129,8 +134,7 @@ class TradingService:
             List of active orders
         """
         try:
-            symbol_str = str(symbol) if symbol else None
-            orders = self.client.get_orders(symbol_str)
+            orders = self.client.get_orders()
 
             logger.debug(f"Retrieved {len(orders)} orders")
             return orders
@@ -149,7 +153,7 @@ class TradingService:
         try:
             balances = self.client.get_wallets()
             logger.debug(f"Retrieved {len(balances)} wallet entries")
-            return balances
+            return list(balances)
 
         except Exception as e:
             logger.error(f"Error retrieving wallet balances: {e}")
@@ -175,7 +179,13 @@ class TradingService:
             else:
                 logger.warning(f"No ticker data for {symbol}")
 
-            return ticker
+            if ticker:
+                return (
+                    dict(ticker)
+                    if hasattr(ticker, "__iter__") and not isinstance(ticker, str)
+                    else ticker
+                )
+            return None
 
         except Exception as e:
             logger.error(f"Error retrieving ticker for {symbol}: {e}")
@@ -206,7 +216,7 @@ class TradingService:
             logger.info(f"Updating order {order_id}")
 
             # Handle placeholder orders
-            if order_id.is_placeholder():
+            if order_id.is_placeholder_id():
                 logger.warning(f"Cannot update placeholder order: {order_id}")
                 return False, "Cannot update placeholder order"
 
@@ -216,20 +226,22 @@ class TradingService:
             delta_float = float(delta.value) if delta else None
 
             # Use client's update method
-            success, result = self.client.update_order(
-                order_id=order_id.value,
+            order_id_int = order_id.to_int()
+            result = self.client.update_order(
+                order_id=order_id_int,
                 price=price_float,
                 amount=amount_float,
                 delta=delta_float,
                 use_cancel_recreate=use_cancel_recreate,
             )
 
-            if success:
+            # Client returns dict result, convert to tuple format
+            if result and "status" in result and result["status"] == "SUCCESS":
                 logger.info(f"Order updated successfully: {result}")
+                return True, result
             else:
                 logger.error(f"Order update failed: {result}")
-
-            return success, result
+                return False, result
 
         except Exception as e:
             logger.error(f"Error updating order {order_id}: {e}")

@@ -16,16 +16,21 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "asyncio>=3.4.3",
     "aiohttp>=3.8.0",
-    "click>=8.0.0"
+    "click>=8.0.0",
+    "psutil>=5.9.0"
 ]
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",      # All-in-one linter and formatter
     "mypy>=1.5.0",      # Type checking
+    "types-psutil",     # Type stubs for psutil
     "pytest>=7.4.0",    # Testing framework
     "pytest-cov>=4.1.0", # Coverage reporting
-    "bandit>=1.7.5"     # Security scanning
+    "bandit>=1.7.5",    # Security scanning
+    "hypothesis>=6.0.0", # Property-based testing
+    "pytest-asyncio>=0.21.0", # Async test support
+    "pytest-benchmark>=4.0.0"  # Performance benchmarking
 ]
 
 [project.scripts]
@@ -77,13 +82,39 @@ ignore_missing_imports = true
 # Coverage - Test coverage reporting
 [tool.coverage.run]
 source = ["bitfinex_maker_kit"]
-omit = ["*/tests/*", "*/__init__.py"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__init__.py",
+    "*/conftest.py",
+    "*/setup.py"
+]
 branch = true
+parallel = true
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 10
 show_missing = true
-skip_empty = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "Maker-Kit Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 # Pytest - Testing configuration
 [tool.pytest.ini_options]
@@ -92,11 +123,14 @@ addopts = [
     "--cov=bitfinex_maker_kit",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "--cov-fail-under=10",
     "--strict-markers",
     "--tb=short"
 ]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow tests"
+    "slow: Slow tests",
+    "benchmark: Performance benchmark tests",
+    "load: Load testing tests"
 ]

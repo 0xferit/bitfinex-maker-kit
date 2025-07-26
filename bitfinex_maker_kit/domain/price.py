@@ -21,10 +21,22 @@ class Price:
 
     value: Decimal
 
-    def __post_init__(self):
-        """Validate price after initialization."""
-        if self.value <= 0:
-            raise ValueError(f"Price must be positive, got: {self.value}")
+    def __init__(self, value: int | float | str | Decimal) -> None:
+        """Create Price from various input types."""
+        if isinstance(value, Decimal):
+            decimal_value = value
+        elif isinstance(value, int | float | str):
+            try:
+                decimal_value = Decimal(str(value))
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid price format: {value}") from e
+        else:
+            raise TypeError(f"Price must be int, float, str, or Decimal, got: {type(value)}")
+
+        if decimal_value <= 0:
+            raise ValueError(f"Price must be positive, got: {decimal_value}")
+
+        object.__setattr__(self, "value", decimal_value)
 
     @classmethod
     def from_float(cls, price: float) -> "Price":
@@ -83,7 +95,7 @@ class Price:
 
     def __str__(self) -> str:
         """String representation."""
-        return self.format_display()
+        return str(self.value)
 
     def __lt__(self, other: "Price") -> bool:
         """Less than comparison."""
@@ -100,3 +112,40 @@ class Price:
     def __ge__(self, other: "Price") -> bool:
         """Greater than or equal comparison."""
         return self.value >= other.value
+
+    def __eq__(self, other: object) -> bool:
+        """Equality comparison."""
+        if isinstance(other, Price):
+            return self.value == other.value
+        return False
+
+    def __ne__(self, other: object) -> bool:
+        """Not equal comparison."""
+        return not self.__eq__(other)
+
+    def __add__(self, other: "Price") -> "Price":
+        """Addition operation."""
+        return Price(self.value + other.value)
+
+    def __sub__(self, other: "Price") -> "Price":
+        """Subtraction operation."""
+        result = self.value - other.value
+        return Price(result)
+
+    def __mul__(self, other: Decimal | int | float) -> "Price":
+        """Multiplication operation."""
+        if isinstance(other, int | float):
+            other = Decimal(str(other))
+        result = self.value * other
+        return Price(result)
+
+    def __truediv__(self, other: Decimal | int | float) -> "Price":
+        """Division operation."""
+        if isinstance(other, int | float):
+            other = Decimal(str(other))
+        result = self.value / other
+        return Price(result)
+
+    def __repr__(self) -> str:
+        """Representation for debugging."""
+        return f"Price('{self.value}')"

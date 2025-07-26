@@ -25,7 +25,7 @@ class ServiceContainer:
     enabling proper dependency injection throughout the application.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the service container."""
         self._instances: dict[type, Any] = {}
         self._singletons: dict[type, Any] = {}
@@ -80,7 +80,7 @@ class ServiceContainer:
 
         except Exception as e:
             logger.error(f"Failed to create Bitfinex client: {e}")
-            raise ValueError(f"Failed to initialize Bitfinex client: {e}")
+            raise ValueError(f"Failed to initialize Bitfinex client: {e}") from e
 
     def create_trading_service(self) -> TradingService:
         """
@@ -107,7 +107,7 @@ class ServiceContainer:
 
         except Exception as e:
             logger.error(f"Failed to create trading service: {e}")
-            raise ValueError(f"Failed to initialize trading service: {e}")
+            raise ValueError(f"Failed to initialize trading service: {e}") from e
 
     def create_order_manager(
         self,
@@ -116,7 +116,7 @@ class ServiceContainer:
         spread_pct: float,
         size: float,
         side_filter: str | None = None,
-    ):
+    ) -> Any:
         """
         Create an order manager with injected dependencies.
 
@@ -137,9 +137,9 @@ class ServiceContainer:
             return OrderManager(symbol, levels, spread_pct, size, side_filter, client)
         except Exception as e:
             logger.error(f"Failed to create order manager: {e}")
-            raise ValueError(f"Failed to create order manager: {e}")
+            raise ValueError(f"Failed to create order manager: {e}") from e
 
-    def create_websocket_handler(self, order_manager):
+    def create_websocket_handler(self, order_manager: Any) -> Any:
         """
         Create WebSocket event handler with injected dependencies.
 
@@ -156,7 +156,7 @@ class ServiceContainer:
             return WebSocketEventHandler(order_manager, client)
         except Exception as e:
             logger.error(f"Failed to create WebSocket handler: {e}")
-            raise ValueError(f"Failed to create WebSocket handler: {e}")
+            raise ValueError(f"Failed to create WebSocket handler: {e}") from e
 
     def create_market_maker_ui(
         self,
@@ -166,7 +166,7 @@ class ServiceContainer:
         spread_pct: float,
         size: float,
         side_filter: str | None = None,
-    ):
+    ) -> Any:
         """
         Create market maker UI with configuration.
 
@@ -187,7 +187,7 @@ class ServiceContainer:
 
     def create_order_generator(
         self, levels: int, spread_pct: float, size: float, side_filter: str | None = None
-    ):
+    ) -> Any:
         """
         Create order generator with configuration.
 

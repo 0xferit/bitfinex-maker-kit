@@ -57,22 +57,22 @@ class WebSocketEventHandler:
 
         # Order update handler
         @wss.on("order_update")
-        def on_order_update(order: Order):
+        def on_order_update(order: Order) -> None:
             self._handle_order_update(order)
 
         # New order handler
         @wss.on("order_new")
-        def on_order_new(order: Order):
+        def on_order_new(order: Order) -> None:
             self._handle_order_new(order)
 
         # Authentication handler
         @wss.on("authenticated")
-        async def on_authenticated(_):
+        async def on_authenticated(_: Any) -> None:
             self._handle_authenticated()
 
         # Notification handler
         @wss.on("on-req-notification")
-        def on_notification(notification: Notification):
+        def on_notification(notification: Notification) -> None:
             self._handle_notification(notification)
 
         self._handlers_setup = True
@@ -116,7 +116,12 @@ class WebSocketEventHandler:
         # Trigger order adjustment callback
         if self.on_order_fill_callback:
             try:
-                asyncio.create_task(self.on_order_fill_callback(fill_price, "full"))
+                task = asyncio.create_task(self.on_order_fill_callback(fill_price, "full"))
+                # Store reference to prevent garbage collection
+                if not hasattr(self, "_callback_tasks"):
+                    self._callback_tasks = set()
+                self._callback_tasks.add(task)
+                task.add_done_callback(self._callback_tasks.discard)
             except Exception as e:
                 logger.error(f"Error in order fill callback: {e}")
 
@@ -145,7 +150,14 @@ class WebSocketEventHandler:
             # Trigger order adjustment callback
             if self.on_order_fill_callback:
                 try:
-                    asyncio.create_task(self.on_order_fill_callback(fill_price, "significant"))
+                    task = asyncio.create_task(
+                        self.on_order_fill_callback(fill_price, "significant")
+                    )
+                    # Store reference to prevent garbage collection
+                    if not hasattr(self, "_callback_tasks"):
+                        self._callback_tasks = set()
+                    self._callback_tasks.add(task)
+                    task.add_done_callback(self._callback_tasks.discard)
                 except Exception as e:
                     logger.error(f"Error in order fill callback: {e}")
         else:

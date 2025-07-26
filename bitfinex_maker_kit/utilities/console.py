@@ -82,7 +82,7 @@ def print_api_error(api_call: str, error: Exception) -> None:
     print_error(f"API call failed - {api_call}: {error}")
 
 
-def print_order_error(order_id: int, operation: str, error: Exception) -> None:
+def print_order_error(order_id: int | str, operation: str, error: Exception) -> None:
     """
     Print standardized error message for order-related operations.
 

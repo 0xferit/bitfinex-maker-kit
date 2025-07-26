@@ -10,6 +10,7 @@ import logging
 from typing import Any
 
 from ..domain.amount import Amount
+from ..domain.order_id import OrderId
 from ..domain.price import Price
 from ..domain.symbol import Symbol
 from ..services.container import ServiceContainer
@@ -53,26 +54,29 @@ class MonitoredTradingService:
 
         logger.info("Monitored trading service initialized")
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "MonitoredTradingService":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         """Async context manager exit."""
         await self.cleanup()
 
-    def get_client(self):
+    def get_client(self) -> Any:
         """Get the underlying trading client."""
         return self._trading_service.get_client()
 
     async def place_order(
         self,
         symbol: Symbol,
-        amount: Amount,
-        price: Price,
         side: str,
-        order_type: str = "EXCHANGE LIMIT",
-        **kwargs,
+        amount: Amount,
+        price: Price | None = None,
     ) -> dict[str, Any]:
         """
         Place order with performance monitoring.
@@ -88,25 +92,26 @@ class MonitoredTradingService:
         Returns:
             Order result dictionary
         """
+        # Ensure monitoring is started in async context
+        await self.performance_monitor.ensure_monitoring_started()
+
         operation_name = f"place_order_{side}_{symbol}"
 
         with (
             self.performance_monitor.time_operation(
-                operation_name, {"symbol": str(symbol), "side": side, "order_type": order_type}
+                operation_name, {"symbol": str(symbol), "side": side}
             ),
             self.profiler.profile_context(operation_name),
         ):
             try:
-                result = await self._trading_service.place_order(
-                    symbol, amount, price, side, order_type, **kwargs
-                )
+                success, result = self._trading_service.place_order(symbol, side, amount, price)
 
                 # Track successful operation
                 self.performance_monitor.track_trading_operation(
-                    "place_order", str(symbol), success=True
+                    "place_order", str(symbol), success=success
                 )
 
-                return result
+                return {"success": success, "result": result}
 
             except Exception:
                 # Track failed operation
@@ -115,7 +120,7 @@ class MonitoredTradingService:
                 )
                 raise
 
-    async def cancel_order(self, order_id: str, symbol: Symbol | None = None) -> dict[str, Any]:
+    async def cancel_order(self, order_id: OrderId, symbol: Symbol | None = None) -> dict[str, Any]:
         """
         Cancel order with performance monitoring.
 
@@ -131,19 +136,19 @@ class MonitoredTradingService:
 
         with (
             self.performance_monitor.time_operation(
-                operation_name, {"order_id": order_id, "symbol": symbol_str}
+                operation_name, {"order_id": str(order_id), "symbol": symbol_str}
             ),
             self.profiler.profile_context(operation_name),
         ):
             try:
-                result = await self._trading_service.cancel_order(order_id, symbol)
+                success, result = self._trading_service.cancel_order(order_id)
 
                 # Track successful operation
                 self.performance_monitor.track_trading_operation(
-                    "cancel_order", symbol_str, success=True
+                    "cancel_order", symbol_str, success=success
                 )
 
-                return result
+                return {"success": success, "result": result}
 
             except Exception:
                 # Track failed operation
@@ -154,10 +159,11 @@ class MonitoredTradingService:
 
     async def update_order(
         self,
-        order_id: str,
-        new_amount: Amount | None = None,
-        new_price: Price | None = None,
-        symbol: Symbol | None = None,
+        order_id: OrderId,
+        price: Price | None = None,
+        amount: Amount | None = None,
+        delta: Amount | None = None,
+        use_cancel_recreate: bool = False,
     ) -> dict[str, Any]:
         """
         Update order with performance monitoring.
@@ -172,40 +178,39 @@ class MonitoredTradingService:
             Update result dictionary
         """
         operation_name = "update_order"
-        symbol_str = str(symbol) if symbol else "unknown"
+        order_id_str = str(order_id)
 
         with (
             self.performance_monitor.time_operation(
                 operation_name,
                 {
-                    "order_id": order_id,
-                    "symbol": symbol_str,
-                    "has_amount": new_amount is not None,
-                    "has_price": new_price is not None,
+                    "order_id": order_id_str,
+                    "has_amount": str(amount is not None),
+                    "has_price": str(price is not None),
                 },
             ),
             self.profiler.profile_context(operation_name),
         ):
             try:
-                result = await self._trading_service.update_order(
-                    order_id, new_amount, new_price, symbol
+                success, result = self._trading_service.update_order(
+                    order_id, price, amount, delta, use_cancel_recreate
                 )
 
                 # Track successful operation
                 self.performance_monitor.track_trading_operation(
-                    "update_order", symbol_str, success=True
+                    "update_order", "order_update", success=success
                 )
 
-                return result
+                return {"success": success, "result": result}
 
             except Exception:
                 # Track failed operation
                 self.performance_monitor.track_trading_operation(
-                    "update_order", symbol_str, success=False
+                    "update_order", "order_update", success=False
                 )
                 raise
 
-    async def get_active_orders(self, symbol: Symbol | None = None) -> list[dict[str, Any]]:
+    async def get_orders(self, symbol: Symbol | None = None) -> list[dict[str, Any]]:
         """
         Get active orders with performance monitoring.
 
@@ -215,54 +220,19 @@ class MonitoredTradingService:
         Returns:
             List of active orders
         """
-        operation_name = "get_active_orders"
+        operation_name = "get_orders"
         symbol_str = str(symbol) if symbol else "all"
 
-        with self.performance_monitor.time_operation(operation_name, {"symbol": symbol_str}):
-            with self.profiler.profile_context(operation_name):
-                try:
-                    result = await self._trading_service.get_active_orders(symbol)
-
-                    # Track successful operation
-                    self.performance_monitor.track_trading_operation(
-                        "get_active_orders", symbol_str, success=True
-                    )
-
-                    return result
-
-                except Exception:
-                    # Track failed operation
-                    self.performance_monitor.track_trading_operation(
-                        "get_active_orders", symbol_str, success=False
-                    )
-                    raise
-
-    async def get_order_status(self, order_id: str, symbol: Symbol | None = None) -> dict[str, Any]:
-        """
-        Get order status with performance monitoring.
-
-        Args:
-            order_id: Order ID to check
-            symbol: Optional trading symbol
-
-        Returns:
-            Order status dictionary
-        """
-        operation_name = "get_order_status"
-        symbol_str = str(symbol) if symbol else "unknown"
-
         with (
-            self.performance_monitor.time_operation(
-                operation_name, {"order_id": order_id, "symbol": symbol_str}
-            ),
+            self.performance_monitor.time_operation(operation_name, {"symbol": symbol_str}),
             self.profiler.profile_context(operation_name),
         ):
             try:
-                result = await self._trading_service.get_order_status(order_id, symbol)
+                result = self._trading_service.get_orders(symbol)
 
                 # Track successful operation
                 self.performance_monitor.track_trading_operation(
-                    "get_order_status", symbol_str, success=True
+                    "get_orders", symbol_str, success=True
                 )
 
                 return result
@@ -270,7 +240,37 @@ class MonitoredTradingService:
             except Exception:
                 # Track failed operation
                 self.performance_monitor.track_trading_operation(
-                    "get_order_status", symbol_str, success=False
+                    "get_orders", symbol_str, success=False
+                )
+                raise
+
+    async def get_order_statistics(self) -> dict[str, Any]:
+        """
+        Get order statistics with performance monitoring.
+
+        Returns:
+            Order statistics dictionary
+        """
+        operation_name = "get_order_statistics"
+
+        with (
+            self.performance_monitor.time_operation(operation_name),
+            self.profiler.profile_context(operation_name),
+        ):
+            try:
+                result = self._trading_service.get_order_statistics()
+
+                # Track successful operation
+                self.performance_monitor.track_trading_operation(
+                    "get_order_statistics", "all", success=True
+                )
+
+                return result
+
+            except Exception:
+                # Track failed operation
+                self.performance_monitor.track_trading_operation(
+                    "get_order_statistics", "all", success=False
                 )
                 raise
 
@@ -287,52 +287,65 @@ class MonitoredTradingService:
         operation_name = "cancel_all_orders"
         symbol_str = str(symbol) if symbol else "all"
 
-        with self.performance_monitor.time_operation(operation_name, {"symbol": symbol_str}):
-            with self.profiler.profile_context(operation_name):
-                try:
-                    result = await self._trading_service.cancel_all_orders(symbol)
+        with (
+            self.performance_monitor.time_operation(operation_name, {"symbol": symbol_str}),
+            self.profiler.profile_context(operation_name),
+        ):
+            try:
+                # Get orders first, then cancel them individually
+                orders = self._trading_service.get_orders(symbol)
+                results = []
 
-                    # Track successful operation
-                    self.performance_monitor.track_trading_operation(
-                        "cancel_all_orders", symbol_str, success=True
+                for order in orders:
+                    order_id = OrderId(str(order.id))
+                    success, result = self._trading_service.cancel_order(order_id)
+                    results.append(
+                        {"order_id": str(order_id), "success": success, "result": result}
                     )
 
-                    return result
+                # Track successful operation
+                self.performance_monitor.track_trading_operation(
+                    "cancel_all_orders", symbol_str, success=True
+                )
 
-                except Exception:
-                    # Track failed operation
-                    self.performance_monitor.track_trading_operation(
-                        "cancel_all_orders", symbol_str, success=False
-                    )
-                    raise
+                return results
 
-    async def get_account_balance(self) -> list[dict[str, Any]]:
+            except Exception:
+                # Track failed operation
+                self.performance_monitor.track_trading_operation(
+                    "cancel_all_orders", symbol_str, success=False
+                )
+                raise
+
+    async def get_wallet_balances(self) -> list[dict[str, Any]]:
         """
-        Get account balance with performance monitoring.
+        Get wallet balances with performance monitoring.
 
         Returns:
-            List of account balances
+            List of wallet balances
         """
-        operation_name = "get_account_balance"
+        operation_name = "get_wallet_balances"
 
-        with self.performance_monitor.time_operation(operation_name):
-            with self.profiler.profile_context(operation_name):
-                try:
-                    result = await self._trading_service.get_account_balance()
+        with (
+            self.performance_monitor.time_operation(operation_name),
+            self.profiler.profile_context(operation_name),
+        ):
+            try:
+                result = self._trading_service.get_wallet_balances()
 
-                    # Track successful operation
-                    self.performance_monitor.track_trading_operation(
-                        "get_account_balance", "all", success=True
-                    )
+                # Track successful operation
+                self.performance_monitor.track_trading_operation(
+                    "get_wallet_balances", "all", success=True
+                )
 
-                    return result
+                return result
 
-                except Exception:
-                    # Track failed operation
-                    self.performance_monitor.track_trading_operation(
-                        "get_account_balance", "all", success=False
-                    )
-                    raise
+            except Exception:
+                # Track failed operation
+                self.performance_monitor.track_trading_operation(
+                    "get_wallet_balances", "all", success=False
+                )
+                raise
 
     async def place_batch_orders(self, orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
@@ -354,14 +367,23 @@ class MonitoredTradingService:
             self.profiler.profile_context(operation_name),
         ):
             try:
-                result = await self._trading_service.place_batch_orders(orders)
+                # Place orders individually since TradingService doesn't have batch method
+                results = []
+                for order_spec in orders:
+                    symbol = Symbol(order_spec["symbol"])
+                    side = order_spec["side"]
+                    amount = Amount(order_spec["amount"])
+                    price = Price(order_spec["price"]) if "price" in order_spec else None
+
+                    success, result = self._trading_service.place_order(symbol, side, amount, price)
+                    results.append({"success": success, "result": result})
 
                 # Track successful batch operation
                 self.performance_monitor.track_trading_operation(
                     "place_batch_orders", f"batch_{batch_size}", success=True
                 )
 
-                return result
+                return results
 
             except Exception:
                 # Track failed batch operation

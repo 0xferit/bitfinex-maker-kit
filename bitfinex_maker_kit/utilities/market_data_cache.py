@@ -7,9 +7,10 @@ real-time data handling, and performance optimizations.
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from ..domain.symbol import Symbol
 from ..services.cache_service import CacheService, create_cache_service
@@ -39,14 +40,14 @@ class MarketDataCacheConfig:
 
     # Cache warming settings
     enable_warming: bool = True
-    warming_symbols: list[str] = None
+    warming_symbols: list[str] | None = None
     warming_interval: float = 300.0  # 5 minutes
 
     # Performance settings
     max_cache_size: int = 5000
     batch_fetch_size: int = 10
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default warming symbols."""
         if self.warming_symbols is None:
             self.warming_symbols = ["tBTCUSD", "tETHUSD", "tPNKUSD"]
@@ -78,13 +79,15 @@ class MarketDataCache:
         )
 
         # Data providers (will be injected)
-        self._data_providers: dict[MarketDataType, callable] = {}
+        self._data_providers: dict[MarketDataType, Callable[..., Any]] = {}
 
         # Setup cache warming if enabled
         if self.config.enable_warming:
             self._setup_cache_warming()
 
-    def register_data_provider(self, data_type: MarketDataType, provider: callable) -> None:
+    def register_data_provider(
+        self, data_type: MarketDataType, provider: Callable[..., Any]
+    ) -> None:
         """
         Register a data provider for a specific market data type.
 
@@ -107,7 +110,7 @@ class MarketDataCache:
         return ttl_map.get(data_type, self.config.ticker_ttl)
 
     def _make_cache_key(
-        self, data_type: MarketDataType, symbol: str | None = None, **params
+        self, data_type: MarketDataType, symbol: str | None = None, **params: Any
     ) -> str:
         """
         Create cache key for market data.
@@ -151,15 +154,16 @@ class MarketDataCache:
         if force_refresh:
             await self.cache_service.delete("market_data", cache_key)
 
-        async def fetch_ticker():
+        async def fetch_ticker() -> dict[str, Any]:
             if MarketDataType.TICKER not in self._data_providers:
                 raise ValueError("No ticker data provider registered")
 
             provider = self._data_providers[MarketDataType.TICKER]
-            return await provider(symbol_str)
+            return await provider(symbol_str)  # type: ignore[no-any-return]
 
         ttl = self._get_ttl_for_type(MarketDataType.TICKER)
-        return await self.cache_service.get_or_set("market_data", cache_key, fetch_ticker, ttl)
+        result = await self.cache_service.get_or_set("market_data", cache_key, fetch_ticker, ttl)
+        return cast(dict[str, Any] | None, result)
 
     async def get_order_book(
         self, symbol: Symbol, precision: str = "P0", force_refresh: bool = False
@@ -181,15 +185,16 @@ class MarketDataCache:
         if force_refresh:
             await self.cache_service.delete("market_data", cache_key)
 
-        async def fetch_orderbook():
+        async def fetch_orderbook() -> dict[str, Any]:
             if MarketDataType.ORDER_BOOK not in self._data_providers:
                 raise ValueError("No order book data provider registered")
 
             provider = self._data_providers[MarketDataType.ORDER_BOOK]
-            return await provider(symbol_str, precision)
+            return await provider(symbol_str, precision)  # type: ignore[no-any-return]
 
         ttl = self._get_ttl_for_type(MarketDataType.ORDER_BOOK)
-        return await self.cache_service.get_or_set("market_data", cache_key, fetch_orderbook, ttl)
+        result = await self.cache_service.get_or_set("market_data", cache_key, fetch_orderbook, ttl)
+        return cast(dict[str, Any] | None, result)
 
     async def get_account_balance(self, force_refresh: bool = False) -> list[dict[str, Any]] | None:
         """
@@ -206,15 +211,16 @@ class MarketDataCache:
         if force_refresh:
             await self.cache_service.delete("market_data", cache_key)
 
-        async def fetch_balance():
+        async def fetch_balance() -> list[dict[str, Any]]:
             if MarketDataType.ACCOUNT_BALANCE not in self._data_providers:
                 raise ValueError("No account balance data provider registered")
 
             provider = self._data_providers[MarketDataType.ACCOUNT_BALANCE]
-            return await provider()
+            return await provider()  # type: ignore[no-any-return]
 
         ttl = self._get_ttl_for_type(MarketDataType.ACCOUNT_BALANCE)
-        return await self.cache_service.get_or_set("market_data", cache_key, fetch_balance, ttl)
+        result = await self.cache_service.get_or_set("market_data", cache_key, fetch_balance, ttl)
+        return cast(list[dict[str, Any]] | None, result)
 
     async def get_recent_trades(
         self, symbol: Symbol, limit: int = 50, force_refresh: bool = False
@@ -236,15 +242,16 @@ class MarketDataCache:
         if force_refresh:
             await self.cache_service.delete("market_data", cache_key)
 
-        async def fetch_trades():
+        async def fetch_trades() -> list[dict[str, Any]]:
             if MarketDataType.TRADES not in self._data_providers:
                 raise ValueError("No trades data provider registered")
 
             provider = self._data_providers[MarketDataType.TRADES]
-            return await provider(symbol_str, limit)
+            return await provider(symbol_str, limit)  # type: ignore[no-any-return]
 
         ttl = self._get_ttl_for_type(MarketDataType.TRADES)
-        return await self.cache_service.get_or_set("market_data", cache_key, fetch_trades, ttl)
+        result = await self.cache_service.get_or_set("market_data", cache_key, fetch_trades, ttl)
+        return cast(list[dict[str, Any]] | None, result)
 
     async def batch_get_tickers(
         self, symbols: list[Symbol], force_refresh: bool = False
@@ -259,7 +266,7 @@ class MarketDataCache:
         Returns:
             Dictionary mapping symbol strings to ticker data
         """
-        results = {}
+        results: dict[str, dict[str, Any] | None] = {}
 
         # Process in batches for better performance
         batch_size = self.config.batch_fetch_size
@@ -274,7 +281,7 @@ class MarketDataCache:
             # Process batch results
             for symbol, result in zip(batch, batch_results, strict=False):
                 symbol_str = str(symbol)
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logger.error(f"Error fetching ticker for {symbol_str}: {result}")
                     results[symbol_str] = None
                 else:

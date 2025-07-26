@@ -6,7 +6,7 @@ from ..domain.order_id import OrderId
 from ..services.container import get_container
 
 
-def cancel_single_order(order_id: int):
+def cancel_single_order(order_id: int) -> bool:
     """Cancel a single order by ID using dependency injection"""
     print(f"🗑️  Cancelling order {order_id}...")
 
@@ -44,7 +44,7 @@ def cancel_orders_by_criteria(
     price_above: float | None = None,
     dry_run: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Cancel orders matching specific criteria (size, direction, symbol, price thresholds)"""
 
     # Build description of what we're looking for
@@ -167,7 +167,7 @@ def cancel_orders_by_criteria(
 
     # Use cancel_order_multi for efficient bulk cancellation
     container = get_container()
-    client = container.create_wrapper_client()
+    client = container.create_bitfinex_client()
 
     try:
         client.cancel_order_multi(order_ids)
@@ -187,7 +187,7 @@ def cancel_command(
     price_above: float | None = None,
     dry_run: bool = False,
     yes: bool = False,
-):
+) -> bool | None:
     """Cancel orders by ID or by criteria"""
     if order_id:
         # Cancel by order ID
@@ -200,9 +200,8 @@ def cancel_command(
         or price_above is not None
     ):
         # Cancel by criteria
-        return cancel_orders_by_criteria(
-            size, direction, symbol, price_below, price_above, dry_run, yes
-        )
+        cancel_orders_by_criteria(size, direction, symbol, price_below, price_above, dry_run, yes)
+        return None
     else:
         from ..utilities.console import print_error
 
@@ -210,12 +209,13 @@ def cancel_command(
             "Must provide either order_id or criteria (--size, --direction, --symbol, --price-below, --price-above)"
         )
         print("Use 'maker-kit cancel --help' for usage information")
+        return None
 
 
-def _cancel_order(order_id: int):
+def _cancel_order(order_id: int) -> tuple[bool, str]:
     """Cancel a specific order by ID"""
     container = get_container()
-    client = container.create_wrapper_client()
+    client = container.create_bitfinex_client()
 
     try:
         client.cancel_order(order_id)

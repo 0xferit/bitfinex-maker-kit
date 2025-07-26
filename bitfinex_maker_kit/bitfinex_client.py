@@ -11,7 +11,7 @@ backward compatibility for existing code.
 
 from typing import Any
 
-from bfxapi.types import Notification, Order
+from bfxapi.types import Notification, Order  # type: ignore
 
 from .core.trading_facade import create_trading_facade
 from .utilities.constants import OrderSide
@@ -41,7 +41,7 @@ class BitfinexClientWrapper:
 
     def submit_order(
         self, symbol: str, side: str | OrderSide, amount: float, price: float | None = None
-    ):
+    ) -> Any:
         """
         Submit order with ENFORCED POST_ONLY for limit orders.
 
@@ -49,15 +49,15 @@ class BitfinexClientWrapper:
         """
         return self.trading_facade.submit_order(symbol, side, amount, price)
 
-    def get_orders(self) -> list[Order]:
+    def get_orders(self) -> list[Any]:
         """Get all active orders."""
         return self.trading_facade.get_orders()
 
-    def cancel_order(self, order_id: int):
+    def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
         return self.trading_facade.cancel_order(order_id)
 
-    def cancel_order_multi(self, order_ids: list[int]):
+    def cancel_order_multi(self, order_ids: list[int]) -> Any:
         """Cancel multiple orders by IDs."""
         return self.trading_facade.cancel_order_multi(order_ids)
 
@@ -76,20 +76,20 @@ class BitfinexClientWrapper:
         """
         return self.trading_facade.update_order(order_id, price, amount, delta, use_cancel_recreate)
 
-    def get_wallets(self):
+    def get_wallets(self) -> Any:
         """Get wallet balances."""
         return self.trading_facade.get_wallets()
 
-    def get_ticker(self, symbol: str):
+    def get_ticker(self, symbol: str) -> Any:
         """Get ticker data for symbol."""
         return self.trading_facade.get_ticker(symbol)
 
-    def get_trades(self, symbol: str, limit: int = 1):
+    def get_trades(self, symbol: str, limit: int = 1) -> Any:
         """Get recent trades for symbol."""
         return self.trading_facade.get_trades(symbol, limit)
 
     @property
-    def wss(self):
+    def wss(self) -> Any:
         """Access to WebSocket interface for real-time data."""
         return self.trading_facade.wss
 

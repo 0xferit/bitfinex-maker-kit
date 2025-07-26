@@ -1,12 +1,15 @@
 """
-Pure API client for Bitfinex with POST_ONLY enforcement.
+Pure API client for Bitfinex with POST_ONLY enforcement - TRADING SAFETY FIRST.
 
-This module provides a focused API client that handles only the core API
-communication with POST_ONLY enforcement, separated from business logic.
+SAFETY CRITICAL: This module architecturally enforces POST_ONLY orders to prevent
+market taking and ensure predictable execution. All orders are maker orders only.
+
+NEVER BYPASSES POST_ONLY FLAG - This is a fundamental safety mechanism.
 """
 
-from bfxapi import WSS_HOST, Client
-from bfxapi.types import Order
+from typing import Any
+
+from bfxapi import WSS_HOST, Client  # type: ignore
 
 from ..utilities.constants import POST_ONLY_FLAG, OrderSide, OrderSubmissionError, OrderType
 
@@ -22,13 +25,13 @@ class BitfinexAPIClient:
     - Error handling and retries
     """
 
-    def __init__(self, api_key: str, api_secret: str):
+    def __init__(self, api_key: str, api_secret: str) -> None:
         """Initialize API client with credentials."""
         self.client = Client(wss_host=WSS_HOST, api_key=api_key, api_secret=api_secret)
 
     def submit_order(
         self, symbol: str, side: str | OrderSide, amount: float, price: float | None = None
-    ) -> dict:
+    ) -> Any:
         """
         Submit order with enforced POST_ONLY for limit orders.
 
@@ -56,9 +59,9 @@ class BitfinexAPIClient:
 
         try:
             if price is None:
-                # Market order - no POST_ONLY flag needed
+                # Market order - no POST_ONLY flag needed, use placeholder price
                 return self.client.rest.auth.submit_order(
-                    type=OrderType.MARKET.value, symbol=symbol, amount=bitfinex_amount
+                    type=OrderType.MARKET.value, symbol=symbol, amount=bitfinex_amount, price=0.0
                 )
             else:
                 # Limit order - ALWAYS enforce POST_ONLY flag
@@ -74,21 +77,29 @@ class BitfinexAPIClient:
                 f"Failed to submit {normalized_side.value} order: {e}"
             ) from e
 
-    def get_orders(self) -> list[Order]:
+    def get_orders(self) -> list[Any]:
         """Get all active orders."""
         try:
-            return self.client.rest.auth.get_orders()
+            result = self.client.rest.auth.get_orders()
+            # Ensure we always return a list, even if API returns None or other types
+            if result is None:
+                return []
+            elif isinstance(result, list):
+                return result
+            else:
+                # If result is not a list but not None, wrap it in a list
+                return [result]
         except Exception as e:
             raise OrderSubmissionError(f"Failed to get orders: {e}") from e
 
-    def cancel_order(self, order_id: int) -> dict:
+    def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
         try:
             return self.client.rest.auth.cancel_order(id=order_id)
         except Exception as e:
             raise OrderSubmissionError(f"Failed to cancel order {order_id}: {e}") from e
 
-    def cancel_order_multi(self, order_ids: list[int]) -> dict:
+    def cancel_order_multi(self, order_ids: list[int]) -> Any:
         """Cancel multiple orders by IDs."""
         if not order_ids:
             raise ValueError("Order IDs list cannot be empty")
@@ -98,14 +109,14 @@ class BitfinexAPIClient:
         except Exception as e:
             raise OrderSubmissionError(f"Failed to cancel {len(order_ids)} orders: {e}") from e
 
-    def get_wallets(self) -> list[dict]:
+    def get_wallets(self) -> Any:
         """Get wallet balances."""
         try:
             return self.client.rest.auth.get_wallets()
         except Exception as e:
             raise OrderSubmissionError(f"Failed to get wallets: {e}") from e
 
-    def get_ticker(self, symbol: str) -> dict:
+    def get_ticker(self, symbol: str) -> Any:
         """Get ticker data for symbol."""
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
@@ -115,7 +126,7 @@ class BitfinexAPIClient:
         except Exception as e:
             raise OrderSubmissionError(f"Failed to get ticker for {symbol}: {e}") from e
 
-    def get_trades(self, symbol: str, limit: int = 1) -> list[dict]:
+    def get_trades(self, symbol: str, limit: int = 1) -> Any:
         """Get recent trades for symbol."""
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
@@ -129,7 +140,7 @@ class BitfinexAPIClient:
             raise OrderSubmissionError(f"Failed to get trades for {symbol}: {e}") from e
 
     @property
-    def wss(self):
+    def wss(self) -> Any:
         """Access to WebSocket interface for real-time data."""
         return self.client.wss
 

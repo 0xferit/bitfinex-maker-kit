@@ -53,11 +53,11 @@ class PendingRequest[T]:
     priority: RequestPriority
     request_id: str = field(default_factory=lambda: str(time.time()))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Generate request ID if not provided."""
         if not self.request_id:
             content = f"{self.key}:{self.params}:{self.timestamp}"
-            self.request_id = hashlib.md5(content.encode()).hexdigest()[:8]
+            self.request_id = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:8]
 
 
 @dataclass
@@ -145,7 +145,7 @@ class BatchRequestService:
     def _create_request_hash(self, request_type: str, params: dict[str, Any]) -> str:
         """Create hash for request deduplication."""
         content = f"{request_type}:{sorted(params.items())}"
-        return hashlib.md5(content.encode()).hexdigest()
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
 
     async def make_request(
         self,
@@ -187,7 +187,7 @@ class BatchRequestService:
             return await existing_request.future
 
         # Create new request
-        future = asyncio.Future()
+        future: asyncio.Future[Any] = asyncio.Future()
         request = PendingRequest(
             key=request_type, params=params, future=future, timestamp=time.time(), priority=priority
         )
@@ -225,14 +225,24 @@ class BatchRequestService:
 
         if pending_count >= self.config.max_batch_size:
             # Process immediately if batch is full
-            asyncio.create_task(self._process_batch(request_type))
+            task = asyncio.create_task(self._process_batch(request_type))
+            # Store reference to prevent garbage collection
+            if not hasattr(self, "_background_tasks"):
+                self._background_tasks = set()
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         else:
             # Schedule processing after timeout
             loop = asyncio.get_event_loop()
-            timer = loop.call_later(
-                self.config.batch_timeout,
-                lambda: asyncio.create_task(self._process_batch(request_type)),
-            )
+
+            def schedule_batch() -> None:
+                task = asyncio.create_task(self._process_batch(request_type))
+                if not hasattr(self, "_background_tasks"):
+                    self._background_tasks = set()
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
+
+            timer = loop.call_later(self.config.batch_timeout, schedule_batch)
             self._batch_timers[request_type] = timer
 
     async def _process_batch(self, request_type: str) -> None:

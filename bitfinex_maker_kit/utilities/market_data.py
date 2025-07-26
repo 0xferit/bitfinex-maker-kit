@@ -4,11 +4,13 @@ Market data operations for Bitfinex CLI.
 REFACTORED: Now supports dependency injection pattern.
 """
 
+from typing import Any
+
 from .client_factory import get_client
 from .console import print_operation_error
 
 
-def get_ticker_data(symbol: str):
+def get_ticker_data(symbol: str) -> dict[str, float] | None:
     """Get ticker data for a symbol - with dependency injection support."""
     client = get_client()
 
@@ -26,7 +28,7 @@ def get_ticker_data(symbol: str):
         return None
 
 
-def get_last_trade(symbol: str):
+def get_last_trade(symbol: str) -> float | None:
     """Get the most recent trade for a symbol - with dependency injection support."""
     client = get_client()
 
@@ -42,7 +44,7 @@ def get_last_trade(symbol: str):
         return None
 
 
-def suggest_price_centers(symbol: str):
+def suggest_price_centers(symbol: str) -> dict[str, Any] | None:
     """Suggest appropriate price centers based on market data"""
     print(f"Analyzing market data for {symbol}...")
 
@@ -83,7 +85,9 @@ def suggest_price_centers(symbol: str):
     }
 
 
-def validate_center_price(symbol: str, center_price: float, ignore_validation: bool = False):
+def validate_center_price(
+    symbol: str, center_price: float, ignore_validation: bool = False
+) -> tuple[bool, dict[str, float] | None]:
     """Validate that center price is within the current bid-ask spread"""
     ticker = get_ticker_data(symbol)
     if not ticker:
@@ -120,7 +124,7 @@ def validate_center_price(symbol: str, center_price: float, ignore_validation: b
     return True, {"bid": bid, "ask": ask}
 
 
-def resolve_center_price(symbol: str, center_input: str):
+def resolve_center_price(symbol: str, center_input: str) -> float | None:
     """Resolve center price from string input (numeric value or 'mid-range')"""
     if center_input.lower() == "mid-range":
         ticker = get_ticker_data(symbol)

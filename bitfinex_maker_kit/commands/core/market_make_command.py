@@ -32,7 +32,7 @@ class MarketMakeCommand(BatchCommand):
         spread_pct: float,
         size: float,
         side_filter: str | None = None,
-    ):
+    ) -> None:
         """
         Initialize market making command.
 
@@ -287,12 +287,15 @@ class MarketMakeCommand(BatchCommand):
         if cancelled_count == len(orders_to_cancel):
             return CommandResult.success(data=undo_data)
         elif cancelled_count > 0:
-            return CommandResult.failure(
-                f"Partially cancelled: {cancelled_count}/{len(orders_to_cancel)} orders",
-                data=undo_data,
+            result = CommandResult.failure(
+                f"Partially cancelled: {cancelled_count}/{len(orders_to_cancel)} orders"
             )
+            result.data = undo_data
+            return result
         else:
-            return CommandResult.failure("Failed to cancel any orders", data=undo_data)
+            result = CommandResult.failure("Failed to cancel any orders")
+            result.data = undo_data
+            return result
 
     def get_preview(self, context: CommandContext) -> str:
         """Get a preview of the market making orders."""

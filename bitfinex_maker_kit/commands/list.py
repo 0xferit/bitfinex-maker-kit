@@ -11,7 +11,7 @@ from ..utilities.market_data import get_ticker_data
 from ..utilities.order_fetcher import fetch_all_orders, fetch_orders_by_symbol
 
 
-def list_orders(symbol: str | None = None, summary: bool = False):
+def list_orders(symbol: str | None = None, summary: bool = False) -> list:
     """List all active orders or orders for a specific symbol"""
     if symbol is None:
         print("Fetching all active orders...")
@@ -40,23 +40,23 @@ def list_orders(symbol: str | None = None, summary: bool = False):
     return _show_detailed_orders(filtered_orders)
 
 
-def list_command(symbol: str = DEFAULT_SYMBOL, summary: bool = False):
+def list_command(symbol: str = DEFAULT_SYMBOL, summary: bool = False) -> list:
     """List active orders command wrapper"""
     return list_orders(symbol, summary)
 
 
-def _show_order_summary(filtered_orders):
+def _show_order_summary(filtered_orders: list) -> list:
     """Generate and display enhanced summary statistics with liquidity analysis"""
     print(f"Found {len(filtered_orders)} active order(s)")
     print()
 
     # Group orders by symbol for analysis
     orders_by_symbol = {}
-    total_buy_amount = 0
-    total_sell_amount = 0
-    total_buy_value = 0  # amount * price for buy orders
-    total_sell_value = 0  # amount * price for sell orders
-    order_types = {}
+    total_buy_amount = 0.0
+    total_sell_amount = 0.0
+    total_buy_value = 0.0  # amount * price for buy orders
+    total_sell_value = 0.0  # amount * price for sell orders
+    order_types: dict[str, int] = {}
     oldest_order = None
     newest_order = None
     buy_orders = []
@@ -77,8 +77,8 @@ def _show_order_summary(filtered_orders):
                 "count": 0,
                 "buy_count": 0,
                 "sell_count": 0,
-                "buy_amount": 0,
-                "sell_amount": 0,
+                "buy_amount": 0.0,
+                "sell_amount": 0.0,
             }
         orders_by_symbol[order_symbol]["count"] += 1
 
@@ -144,10 +144,10 @@ def _show_order_summary(filtered_orders):
 
             # Filter orders within ±2% range
             orders_in_range = []
-            buy_liquidity_in_range = 0
-            sell_liquidity_in_range = 0
-            buy_value_in_range = 0
-            sell_value_in_range = 0
+            buy_liquidity_in_range = 0.0
+            sell_liquidity_in_range = 0.0
+            buy_value_in_range = 0.0
+            sell_value_in_range = 0.0
 
             for order in symbol_orders:
                 order_price = float(order.price)
@@ -261,7 +261,9 @@ def _show_order_summary(filtered_orders):
     return filtered_orders
 
 
-def _display_order_book_visualization(orders, mid_price, lower_bound, upper_bound):
+def _display_order_book_visualization(
+    orders: list, mid_price: float, lower_bound: float, upper_bound: float
+) -> None:
     """Display ASCII visualization of order book within specified range"""
     print("📊 Order Book Visualization (±2% range):")
 
@@ -278,18 +280,18 @@ def _display_order_book_visualization(orders, mid_price, lower_bound, upper_boun
         amount = float(order.amount)
 
         if price not in price_levels:
-            price_levels[price] = {"buy": 0, "sell": 0}
+            price_levels[price] = {"buy": 0.0, "sell": 0.0}
 
         if amount > 0:
-            price_levels[price]["buy"] += abs(amount)
+            price_levels[price]["buy"] += float(abs(amount))
         else:
-            price_levels[price]["sell"] += abs(amount)
+            price_levels[price]["sell"] += float(abs(amount))
 
     # Sort prices
     sorted_prices = sorted(price_levels.keys(), reverse=True)
 
     # Find max amount for scaling
-    max_amount = 0
+    max_amount = 0.0
     for price_data in price_levels.values():
         max_amount = max(max_amount, price_data["buy"], price_data["sell"])
 
@@ -323,7 +325,7 @@ def _display_order_book_visualization(orders, mid_price, lower_bound, upper_boun
     print()
 
 
-def _show_detailed_orders(filtered_orders):
+def _show_detailed_orders(filtered_orders: list) -> list:
     """Display detailed order information using display helpers"""
     print(f"Found {len(filtered_orders)} active order(s)")
 

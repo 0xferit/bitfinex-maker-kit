@@ -28,6 +28,7 @@ class TestHighVolumeTrading:
         """Create trading service for load testing."""
         return create_mock_trading_service("normal")
 
+    @pytest.mark.asyncio
     async def test_high_frequency_order_placement(self, trading_service):
         """Test high frequency order placement load."""
         orders_per_second = 50
@@ -83,6 +84,7 @@ class TestHighVolumeTrading:
         )
         assert p95_response_time < 200.0, f"P95 response time {p95_response_time:.1f}ms too high"
 
+    @pytest.mark.asyncio
     async def test_bulk_order_management(self, trading_service):
         """Test bulk order management under load."""
         batch_size = 100
@@ -138,6 +140,7 @@ class TestHighVolumeTrading:
         assert cancel_time < 2.0, f"Bulk cancellation time {cancel_time:.2f}s too high"
         assert len(all_order_ids) >= total_orders * 0.95, "Too many order placement failures"
 
+    @pytest.mark.asyncio
     async def test_concurrent_user_simulation(self, trading_service):
         """Test concurrent user trading simulation."""
         num_users = 20
@@ -228,6 +231,7 @@ class TestCacheLoadTests:
         yield cache
         await cache.cleanup()
 
+    @pytest.mark.asyncio
     async def test_high_volume_cache_operations(self, cache_service):
         """Test cache performance under high volume operations."""
         operations_per_second = 1000
@@ -280,6 +284,7 @@ class TestCacheLoadTests:
             f"Cache hit ratio {stats['hit_ratio']:.2f} too low under load"
         )
 
+    @pytest.mark.asyncio
     async def test_concurrent_cache_access(self, cache_service):
         """Test concurrent cache access patterns."""
         num_workers = 50
@@ -353,6 +358,7 @@ class TestCacheLoadTests:
 class TestSystemStressTests:
     """Stress tests for overall system limits."""
 
+    @pytest.mark.asyncio
     async def test_memory_stress(self):
         """Test system behavior under memory stress."""
         # Create many domain objects to stress memory
@@ -387,6 +393,7 @@ class TestSystemStressTests:
         test_symbol = Symbol("tETHUSD")
         assert str(test_symbol) == "tETHUSD"
 
+    @pytest.mark.asyncio
     async def test_error_cascade_resilience(self, trading_service):
         """Test system resilience to error cascades."""
         error_count = 0
@@ -428,6 +435,7 @@ class TestSystemStressTests:
 
         assert recovery_result is not None, "System failed to recover after error cascade"
 
+    @pytest.mark.asyncio
     async def test_resource_exhaustion_handling(self):
         """Test handling of resource exhaustion scenarios."""
         # Test large number of concurrent operations
@@ -482,6 +490,7 @@ class TestSystemStressTests:
 class TestEnduranceTests:
     """Long-running endurance tests."""
 
+    @pytest.mark.asyncio
     async def test_sustained_operation_endurance(self, trading_service):
         """Test sustained operations over extended period."""
         test_duration = 60  # 1 minute for CI/CD compatibility

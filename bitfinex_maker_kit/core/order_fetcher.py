@@ -110,10 +110,10 @@ class OrderFetcher:
 
             # Update cache
             self._cached_orders = orders
-            self._cache_timestamp = current_time
+            self._cache_timestamp = int(current_time)
 
             logger.debug(f"Fetched {len(orders)} orders from API")
-            return orders
+            return list(orders)  # Ensure return type matches annotation
 
         except Exception as e:
             logger.error(f"Failed to fetch orders from API: {e}")
@@ -130,7 +130,7 @@ class OrderFetcher:
         self._cached_orders = None
         self._cache_timestamp = 0
 
-    def get_cache_info(self) -> dict:
+    def get_cache_info(self) -> dict[str, Any]:
         """
         Get information about the current cache state.
 

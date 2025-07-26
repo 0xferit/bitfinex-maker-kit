@@ -57,6 +57,15 @@ class WebSocketUpdateStrategy(OrderUpdateStrategy):
         new_price = float(request.price) if request.price else current_price
         new_amount = float(request.calculate_new_amount(Decimal(str(current_order.amount))))
 
+        # Validate that we have a valid price
+        if new_price is None:
+            return OrderUpdateResult(
+                success=False,
+                method="validation_error",
+                order_id=request.order_id,
+                message="Cannot update order: no price specified and current order has no price",
+            )
+
         # Convert amount for Bitfinex API (negative for sell orders)
         bitfinex_amount = -new_amount if is_sell_order else new_amount
 
@@ -177,13 +186,14 @@ class WebSocketUpdateStrategy(OrderUpdateStrategy):
         """Check if WebSocket connection is active."""
         try:
             if hasattr(wss, "is_open") and callable(wss.is_open):
-                return wss.is_open()
+                result = wss.is_open()
+                return bool(result)  # Ensure we return a bool
             elif hasattr(wss, "_connected"):
                 return bool(wss._connected)
             elif hasattr(wss, "connected"):
                 return bool(wss.connected)
         except Exception:
-            pass
+            pass  # nosec B110 - Expected behavior: gracefully handle any websocket state check errors
 
         return False
 

@@ -5,6 +5,7 @@ Provides type-safe order ID representation with validation and utilities.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -16,22 +17,48 @@ class OrderId:
     generated locally when order ID extraction fails.
     """
 
-    value: int | str
+    value: int
     is_placeholder: bool = False
 
-    def __post_init__(self):
-        """Validate order ID after initialization."""
-        if self.value is None:
+    def __init__(self, value: int | str, is_placeholder: bool = False) -> None:
+        """Create OrderId from various input types."""
+        if value is None:
             raise ValueError("Order ID cannot be None")
 
-        if isinstance(self.value, str):
-            if not self.value.strip():
+        # Convert string to int if it's a valid numeric string
+        if isinstance(value, str):
+            if not value.strip():
                 raise ValueError("String order ID cannot be empty")
-        elif isinstance(self.value, int):
-            if self.value <= 0:
-                raise ValueError(f"Integer order ID must be positive, got: {self.value}")
+
+            # Try to convert to int if it's numeric and not a placeholder
+            if not is_placeholder and value.isdigit():
+                int_value = int(value)
+                if int_value < 10000000 or int_value > 99999999:
+                    raise ValueError(
+                        f"Order ID must be between 10000000 and 99999999, got: {int_value}"
+                    )
+
+                object.__setattr__(self, "value", int_value)
+                object.__setattr__(self, "is_placeholder", is_placeholder)
+            elif is_placeholder:
+                # For placeholder IDs, store as string in a special way
+                # We'll use a negative hash as the int value to avoid conflicts
+                hash_value = abs(hash(value)) % 1000000000  # Ensure it's within reasonable range
+                object.__setattr__(self, "value", hash_value)
+                object.__setattr__(self, "is_placeholder", True)
+                object.__setattr__(self, "_original_string", value)
+            else:
+                raise ValueError(f"Invalid order ID format: {value}")
+        elif isinstance(value, int):
+            if value <= 0:
+                raise ValueError(f"Integer order ID must be positive, got: {value}")
+            if not is_placeholder and (value < 10000000 or value > 99999999):
+                raise ValueError(f"Order ID must be between 10000000 and 99999999, got: {value}")
+
+            object.__setattr__(self, "value", value)
+            object.__setattr__(self, "is_placeholder", is_placeholder)
         else:
-            raise ValueError(f"Order ID must be int or str, got: {type(self.value)}")
+            raise TypeError(f"Order ID must be int or str, got: {type(value)}")
 
     @classmethod
     def from_exchange(cls, order_id: int | str) -> "OrderId":
@@ -78,7 +105,7 @@ class OrderId:
 
     def to_string(self) -> str:
         """Convert to string representation."""
-        return str(self.value)
+        return str(self.value)  # type: ignore[no-any-return]
 
     def to_int(self) -> int:
         """
@@ -87,12 +114,7 @@ class OrderId:
         Raises:
             ValueError: If the order ID is not convertible to int
         """
-        if isinstance(self.value, int):
-            return self.value
-        elif isinstance(self.value, str) and self.value.isdigit():
-            return int(self.value)
-        else:
-            raise ValueError(f"Cannot convert order ID '{self.value}' to integer")
+        return self.value
 
     def matches_pattern(self, pattern: str) -> bool:
         """Check if the order ID matches a given pattern (for placeholder IDs)."""
@@ -106,7 +128,7 @@ class OrderId:
         except re.error:
             return False
 
-    def get_placeholder_info(self) -> dict:
+    def get_placeholder_info(self) -> dict[str, Any]:
         """
         Extract information from placeholder ID.
 
@@ -133,17 +155,44 @@ class OrderId:
 
     def __str__(self) -> str:
         """String representation."""
-        prefix = "[P]" if self.is_placeholder else ""
-        return f"{prefix}{self.value}"
+        if self.is_placeholder and hasattr(self, "_original_string"):
+            return self._original_string  # type: ignore[no-any-return]
+        return str(self.value)  # type: ignore[no-any-return]
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equality comparison."""
         if isinstance(other, OrderId):
-            return self.value == other.value and self.is_placeholder == other.is_placeholder
-        elif isinstance(other, int | str):
+            return self.value == other.value
+        elif isinstance(other, int):
             return self.value == other
+        elif isinstance(other, str) and other.isdigit():
+            return self.value == int(other)
         return False
+
+    def __ne__(self, other: object) -> bool:
+        """Not equal comparison."""
+        return not self.__eq__(other)
+
+    def __lt__(self, other: "OrderId") -> bool:
+        """Less than comparison."""
+        return self.value < other.value
+
+    def __le__(self, other: "OrderId") -> bool:
+        """Less than or equal comparison."""
+        return self.value <= other.value
+
+    def __gt__(self, other: "OrderId") -> bool:
+        """Greater than comparison."""
+        return self.value > other.value
+
+    def __ge__(self, other: "OrderId") -> bool:
+        """Greater than or equal comparison."""
+        return self.value >= other.value
 
     def __hash__(self) -> int:
         """Hash for use in sets and dicts."""
-        return hash((self.value, self.is_placeholder))
+        return hash(self.value)
+
+    def __repr__(self) -> str:
+        """Representation for debugging."""
+        return f"OrderId({self.value})"

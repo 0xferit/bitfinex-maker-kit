@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from typing import Any
 
 from ..services.performance_monitor import PerformanceMonitor
 from ..utilities.profiler import PerformanceProfiler
@@ -192,7 +193,10 @@ class PerformanceDashboard:
     def _display_profiler_summary(self) -> None:
         """Display profiler summary section."""
         try:
-            top_functions = self.profiler.get_top_slowest_functions(3)
+            if self.profiler is not None:
+                top_functions = self.profiler.get_top_slowest_functions(3)
+            else:
+                top_functions = []
 
             if top_functions:
                 print("\n🔍 TOP SLOWEST FUNCTIONS")
@@ -221,7 +225,7 @@ class PerformanceDashboard:
         }
         return emoji_map.get(health, "❓")
 
-    def _check_alerts(self, metrics) -> list[str]:
+    def _check_alerts(self, metrics: Any) -> list[str]:
         """Check for performance alerts."""
         alerts = []
 

@@ -55,7 +55,7 @@ class ExecutionOptions:
 class ConfirmationHandler:
     """Handles user confirmation prompts."""
 
-    def __init__(self, prompt_function: Callable[[str], bool] | None = None):
+    def __init__(self, prompt_function: Callable[[str], bool] | None = None) -> None:
         """
         Initialize confirmation handler.
 
@@ -102,7 +102,7 @@ class CommandExecutor:
     logging, timeout handling, and error recovery.
     """
 
-    def __init__(self, container: ServiceContainer, config: TradingConfig):
+    def __init__(self, container: ServiceContainer, config: TradingConfig) -> None:
         """
         Initialize command executor.
 
@@ -149,11 +149,12 @@ class CommandExecutor:
                 print(f"\n📋 {preview}")
 
             # Request confirmation if needed
-            if not options.skip_confirmation:
-                if not self.confirmation_handler.confirm(command, context):
-                    result = CommandResult.cancelled("User cancelled operation")
-                    self._record_execution(command, result, options)
-                    return result
+            if not options.skip_confirmation and not self.confirmation_handler.confirm(
+                command, context
+            ):
+                result = CommandResult.cancelled("User cancelled operation")
+                self._record_execution(command, result, options)
+                return result
 
             # Execute command with timeout
             if options.timeout_seconds:
@@ -302,7 +303,7 @@ class CommandExecutor:
         class TimeoutError(Exception):
             pass
 
-        def timeout_handler(signum, frame):
+        def timeout_handler(signum: int, frame: Any) -> None:
             raise TimeoutError(f"Command timed out after {timeout_seconds} seconds")
 
         # Set up timeout signal (Unix only)
@@ -318,7 +319,9 @@ class CommandExecutor:
         finally:
             signal.signal(signal.SIGALRM, old_handler)
 
-    def _log_command_result(self, command: Command, result: CommandResult, is_undo: bool = False):
+    def _log_command_result(
+        self, command: Command, result: CommandResult, is_undo: bool = False
+    ) -> None:
         """Log command execution result."""
         operation = "undo" if is_undo else "execution"
 
@@ -333,7 +336,9 @@ class CommandExecutor:
             logger.error(message)
             print(message)
 
-    def _record_execution(self, command: Command, result: CommandResult, options: ExecutionOptions):
+    def _record_execution(
+        self, command: Command, result: CommandResult, options: ExecutionOptions
+    ) -> None:
         """Record command execution in history."""
         execution_record = {
             "command_name": command.name,
@@ -367,7 +372,7 @@ class CommandExecutor:
         """Get recent command executions."""
         return self.execution_history[-limit:] if self.execution_history else []
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear execution history."""
         self.execution_history.clear()
         logger.info("Command execution history cleared")
@@ -412,7 +417,7 @@ def configure_executor(container: ServiceContainer, config: TradingConfig) -> Co
     return _global_executor
 
 
-def reset_executor():
+def reset_executor() -> None:
     """Reset the global executor (mainly for testing)."""
     global _global_executor
     _global_executor = None

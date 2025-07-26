@@ -145,6 +145,7 @@ class TestTradingStressScenarios:
         """Create stress test runner."""
         return StressTestRunner()
 
+    @pytest.mark.asyncio
     async def test_high_frequency_order_placement(self, stress_runner):
         """Test high-frequency order placement under stress."""
         trading_service = create_mock_trading_service("normal")
@@ -179,6 +180,7 @@ class TestTradingStressScenarios:
         assert result.success_rate >= 0.7, f"HFT success rate too low: {result.success_rate:.1%}"
         assert result.peak_memory_mb < 100, f"Memory usage too high: {result.peak_memory_mb:.1f}MB"
 
+    @pytest.mark.asyncio
     async def test_massive_concurrent_orders(self, stress_runner):
         """Test massive concurrent order placement stress."""
         trading_service = create_mock_trading_service("normal")
@@ -219,6 +221,7 @@ class TestTradingStressScenarios:
             f"Concurrent throughput too low: {result.operations_per_second:.1f} ops/sec"
         )
 
+    @pytest.mark.asyncio
     async def test_order_cancel_storm(self, stress_runner):
         """Test rapid order cancellation under stress."""
         trading_service = create_mock_trading_service("normal")
@@ -279,6 +282,7 @@ class TestTradingStressScenarios:
         )
         assert result.success_rate >= 0.8, f"Cancel success rate too low: {result.success_rate:.1%}"
 
+    @pytest.mark.asyncio
     async def test_mixed_operation_chaos(self, stress_runner):
         """Test chaotic mix of all trading operations."""
         trading_service = create_mock_trading_service("normal")
@@ -338,6 +342,7 @@ class TestCacheStressScenarios:
         """Create stress test runner."""
         return StressTestRunner()
 
+    @pytest.mark.asyncio
     async def test_cache_write_storm(self, stress_runner):
         """Test cache under heavy write load."""
         cache_service = create_mock_cache_service("normal")
@@ -379,6 +384,7 @@ class TestCacheStressScenarios:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_cache_read_storm(self, stress_runner):
         """Test cache under heavy read load."""
         cache_service = create_mock_cache_service("normal")
@@ -421,6 +427,7 @@ class TestCacheStressScenarios:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_cache_mixed_load_storm(self, stress_runner):
         """Test cache under mixed read/write/delete load."""
         cache_service = create_mock_cache_service("normal")
@@ -496,6 +503,7 @@ class TestSystemIntegrationStress:
         """Create stress test runner."""
         return StressTestRunner()
 
+    @pytest.mark.asyncio
     async def test_full_system_load(self, stress_runner):
         """Test complete system under realistic trading load."""
         trading_service = create_mock_trading_service("normal")
@@ -571,6 +579,7 @@ class TestSystemIntegrationStress:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_resource_exhaustion_resilience(self, stress_runner):
         """Test system resilience under resource exhaustion."""
         trading_service = create_mock_trading_service("normal")
@@ -643,6 +652,7 @@ class TestSystemIntegrationStress:
 class TestLoadTestReporting:
     """Tests for load test reporting and analysis."""
 
+    @pytest.mark.asyncio
     async def test_stress_test_result_export(self):
         """Test stress test result export functionality."""
         stress_runner = StressTestRunner()
@@ -675,6 +685,7 @@ class TestLoadTestReporting:
         assert len(stress_runner.results) == 1
         assert stress_runner.results[0] == result
 
+    @pytest.mark.asyncio
     async def test_multiple_stress_test_aggregation(self):
         """Test aggregation of multiple stress test results."""
         stress_runner = StressTestRunner()
@@ -682,9 +693,9 @@ class TestLoadTestReporting:
         # Run multiple tests
         for i in range(3):
 
-            async def test_operation():
-                await asyncio.sleep(0.001 * (i + 1))  # Variable timing
-                return i % 2 == 0  # Alternate success/failure
+            async def test_operation(iteration=i):
+                await asyncio.sleep(0.001 * (iteration + 1))  # Variable timing
+                return iteration % 2 == 0  # Alternate success/failure
 
             await stress_runner.run_stress_test(
                 f"aggregation_test_{i}",

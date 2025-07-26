@@ -17,8 +17,8 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
 # Import the wrapper and related modules
-from bitfinex_maker_kit.auth import create_client
 from bitfinex_maker_kit.bitfinex_client import BitfinexClientWrapper, create_wrapper_client
+from bitfinex_maker_kit.utilities.auth import create_client
 
 
 class TestBitfinexClientWrapper(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
         # Mock the Bitfinex API responses
         self.mock_bitfinex_client.rest.auth.submit_order.return_value = self.mock_response
 
-    @patch("maker_kit.bitfinex_client.Client")
+    @patch("bitfinex_maker_kit.bitfinex_client.Client")
     def test_wrapper_limit_order_enforces_post_only(self, mock_client_class):
         """
         🎯 THE ULTIMATE TEST: Wrapper ALWAYS uses POST_ONLY for limit orders
@@ -64,7 +64,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
             flags=4096,  # POST_ONLY flag is AUTOMATICALLY added by wrapper
         )
 
-    @patch("maker_kit.bitfinex_client.Client")
+    @patch("bitfinex_maker_kit.bitfinex_client.Client")
     def test_wrapper_market_order_no_post_only(self, mock_client_class):
         """Test that wrapper does NOT use POST_ONLY for market orders"""
         mock_client_class.return_value = self.mock_bitfinex_client
@@ -83,7 +83,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
             # NO FLAGS PARAMETER for market orders
         )
 
-    @patch("maker_kit.bitfinex_client.Client")
+    @patch("bitfinex_maker_kit.bitfinex_client.Client")
     def test_wrapper_hardcoded_post_only_flag(self, mock_client_class):
         """
         🔐 BOUNDARY TEST: POST_ONLY flag (4096) is hardcoded at API boundary
@@ -117,7 +117,7 @@ class TestBitfinexClientWrapper(unittest.TestCase):
                     f"Wrapper must add POST_ONLY flag for {side} {amount} @ {price}",
                 )
 
-    @patch("maker_kit.bitfinex_client.Client")
+    @patch("bitfinex_maker_kit.bitfinex_client.Client")
     def test_wrapper_amount_conversion(self, mock_client_class):
         """Test that wrapper properly converts amounts for Bitfinex API"""
         mock_client_class.return_value = self.mock_bitfinex_client
@@ -190,7 +190,7 @@ class TestApplicationLayerIntegration(unittest.TestCase):
     cannot place non-POST_ONLY orders.
     """
 
-    @patch("maker_kit.auth.create_wrapper_client")
+    @patch("bitfinex_maker_kit.utilities.auth.create_wrapper_client")
     def test_create_client_returns_wrapper(self, mock_create_wrapper):
         """Test that create_client() returns our wrapper, not raw Bitfinex client"""
         mock_wrapper = Mock()
@@ -203,7 +203,7 @@ class TestApplicationLayerIntegration(unittest.TestCase):
         self.assertEqual(client, mock_wrapper)
         mock_create_wrapper.assert_called_once()
 
-    @patch("maker_kit.auth.create_wrapper_client")
+    @patch("bitfinex_maker_kit.utilities.auth.create_wrapper_client")
     def test_application_cannot_access_raw_bitfinex_client(self, mock_create_wrapper):
         """Test that application layer cannot access raw Bitfinex client"""
         mock_wrapper = Mock()
@@ -211,7 +211,7 @@ class TestApplicationLayerIntegration(unittest.TestCase):
         mock_create_wrapper.return_value = mock_wrapper
 
         # Import the submit_order function (simulates application usage)
-        from bitfinex_maker_kit.orders import submit_order
+        from bitfinex_maker_kit.utilities.orders import submit_order
 
         # Application tries to submit order
         submit_order("tPNKUSD", "buy", 10.0, 0.100)
@@ -229,10 +229,10 @@ class TestApplicationLayerIntegration(unittest.TestCase):
         # Test that application modules don't import raw Bitfinex client
         import inspect
 
-        from maker_kit import auto_market_maker, market_data, market_making, orders, wallet
+        from maker_kit import market_data, market_making, orders, wallet
 
         # Check that no module imports the raw Client
-        modules_to_check = [orders, market_making, auto_market_maker, wallet, market_data]
+        modules_to_check = [orders, market_making, wallet, market_data]
 
         for module in modules_to_check:
             source = inspect.getsource(module)

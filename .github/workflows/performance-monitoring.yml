@@ -36,7 +36,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
+        pip install -e ".[dev]"
     
     - name: Run comprehensive benchmarks
       run: |
@@ -71,7 +71,7 @@ jobs:
         BENCHMARK_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
     
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-results-${{ github.run_id }}
         path: |
@@ -87,7 +87,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload regression report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: regression-report-${{ github.run_id }}
         path: regression-report.json
@@ -113,7 +113,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
+        pip install -e ".[dev]"
     
     - name: Run load tests - ${{ matrix.load_pattern }}
       run: |
@@ -124,7 +124,7 @@ jobs:
         LOAD_TEST_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
     
     - name: Upload load test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: load-test-results-${{ matrix.load_pattern }}-${{ github.run_id }}
         path: load-test-results-${{ matrix.load_pattern }}.json
@@ -145,7 +145,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
+        pip install -e ".[dev]"
     
     - name: Run stress tests
       run: |
@@ -155,7 +155,7 @@ jobs:
         STRESS_TEST_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
     
     - name: Upload stress test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: stress-test-results-${{ github.run_id }}
         path: stress-test-results.json
@@ -176,7 +176,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
+        pip install -e ".[dev]"
         pip install memory-profiler psutil
     
     - name: Run memory profiling
@@ -193,7 +193,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload memory profiling results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: memory-profiling-results-${{ github.run_id }}
         path: |
@@ -220,10 +220,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
+        pip install -e ".[dev]"
     
     - name: Download current benchmark results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: benchmark-results-${{ github.run_id }}
         path: current-results/
@@ -244,7 +244,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload performance comparison
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-comparison-${{ github.run_id }}
         path: |
@@ -264,7 +264,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Download benchmark results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: benchmark-results-${{ github.run_id }}
         path: new-results/
@@ -310,7 +310,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Download comparison results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: performance-comparison-${{ github.run_id }}
         path: comparison-results/

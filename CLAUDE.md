@@ -7,7 +7,7 @@
 ### Key Characteristics
 - **Language**: Python 3.12+ (strictly enforced)
 - **License**: MIT (open source)
-- **Version**: 3.5.0 (production-ready)
+- **Version**: 4.0.0 (production-ready)
 - **Purpose**: Market making and automated trading on Bitfinex
 - **Architecture**: Single exchange, single strategy, safety-focused design
 
@@ -34,7 +34,6 @@ bitfinex_maker_kit/
 ├── cli.py                   # Main command-line interface
 ├── bitfinex_client.py       # API wrapper with POST_ONLY enforcement
 ├── commands/                # Individual CLI command modules
-│   ├── auto_market_make.py  # Automated market making with dynamic adjustment
 │   ├── cancel.py            # Cancel orders by ID or criteria
 │   ├── clear.py             # Clear all orders
 │   ├── fill_spread.py       # Fill bid-ask gaps with equally spaced orders
@@ -65,7 +64,6 @@ bitfinex_maker_kit/
 | `cancel` | Cancel orders | Cancel by ID, symbol, or criteria |
 | `put` | Place single order | Manual order placement |
 | `market-make` | Create staircase orders | Symmetric bid/ask levels |
-| `auto-market-make` | Automated market making | Dynamic adjustment based on market |
 | `fill-spread` | Fill bid-ask gaps | Equally spaced orders across spread |
 | `clear` | Clear all orders | Remove all open orders |
 | `update` | Update existing orders | Modify order parameters |
@@ -130,14 +128,13 @@ Located in `tests/` directory:
 - Use dry-run mode for strategy validation
 - Monitor orders regularly using `list` command
 - Keep API credentials secure in `.env` file
-- Understand market conditions before auto-market-making
+- Understand market conditions before market-making
 
 ### Common Workflows
 1. **Setup**: Test connection → Check wallet → Start small
 2. **Manual Trading**: Use `put` for individual orders
 3. **Market Making**: Use `market-make` for symmetric levels
-4. **Automated**: Use `auto-market-make` for dynamic strategies
-5. **Management**: Use `list`, `update`, `cancel` for order management
+4. **Management**: Use `list`, `update`, `cancel` for order management
 
 ## Environment Variables Required
 ```
@@ -158,7 +155,4 @@ python -m bitfinex_maker_kit list
 
 # Market make with 5 levels, 2% spread
 python -m bitfinex_maker_kit market-make --levels 5 --spread 2.0
-
-# Auto market make
-python -m bitfinex_maker_kit auto-market-make --symbol tBTCUSD
 ```

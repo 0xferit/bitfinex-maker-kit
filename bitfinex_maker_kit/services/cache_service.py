@@ -365,7 +365,7 @@ class CacheService:
             interval: Warming interval in seconds
         """
 
-        async def warming_loop():
+        async def warming_loop() -> None:
             while True:
                 try:
                     await self.warm_cache(namespace, keys)

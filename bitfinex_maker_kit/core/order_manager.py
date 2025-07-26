@@ -7,6 +7,7 @@ focused order management without UI or WebSocket concerns.
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from ..utilities.orders import submit_order
@@ -35,7 +36,7 @@ class OrderManager:
         size: float,
         side_filter: str | None = None,
         client: Any = None,
-    ):
+    ) -> None:
         """
         Initialize order manager.
 
@@ -86,7 +87,9 @@ class OrderManager:
         logger.debug(f"Generated {len(orders)} orders around center price ${center_price:.6f}")
         return orders
 
-    def place_initial_orders(self, center_price: float, ui_callback=None) -> int:
+    def place_initial_orders(
+        self, center_price: float, ui_callback: Callable[[str, str], None] | None = None
+    ) -> int:
         """
         Place initial set of orders.
 
@@ -143,7 +146,7 @@ class OrderManager:
         logger.info(f"Successfully placed {successful_orders}/{len(orders_to_place)} orders")
         return successful_orders
 
-    def cancel_all_orders(self, ui_callback=None) -> None:
+    def cancel_all_orders(self, ui_callback: Callable[[str, str], None] | None = None) -> None:
         """
         Cancel all tracked orders.
 
@@ -195,7 +198,9 @@ class OrderManager:
 
         logger.info("All orders cancelled and tracking cleared")
 
-    def check_and_replenish_orders(self, ui_callback=None) -> int:
+    def check_and_replenish_orders(
+        self, ui_callback: Callable[[str, str], None] | None = None
+    ) -> int:
         """
         Check for cancelled orders and replenish them.
 
@@ -242,7 +247,7 @@ class OrderManager:
                 replenished_count = 0
 
                 # Replenish each missing order
-                for order_id, order_info in missing_orders:
+                for _order_id, order_info in missing_orders:
                     side = order_info["side"]
                     amount = order_info["amount"]
                     price = order_info["price"]

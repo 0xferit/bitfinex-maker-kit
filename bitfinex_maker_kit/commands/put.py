@@ -26,15 +26,15 @@ def put_command(
     symbol: str = DEFAULT_SYMBOL,
     dry_run: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Place a single order (always POST_ONLY for limit orders)."""
 
     # Validate and parse price
     is_market_order = price is None
     if not is_market_order:
         try:
-            price_float = float(price)
-        except ValueError:
+            price_float = float(price) if price is not None else None
+        except (ValueError, TypeError):
             print_error(f"Invalid price '{price}'. Use a number or omit for market order")
             return
     else:

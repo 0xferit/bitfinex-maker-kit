@@ -13,17 +13,18 @@ import pstats
 import threading
 import time
 import tracemalloc
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 import psutil
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+P = ParamSpec("P")
 
 
 @dataclass
@@ -80,7 +81,9 @@ class PerformanceProfiler:
 
         logger.info("Performance profiler initialized")
 
-    def profile_function(self, func_name: str | None = None, memory_tracking: bool = True):
+    def profile_function(
+        self, func_name: str | None = None, memory_tracking: bool = True
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Decorator for profiling function performance.
 
@@ -92,30 +95,33 @@ class PerformanceProfiler:
             Decorated function
         """
 
-        def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        def decorator(func: Callable[P, T]) -> Callable[P, T]:
             name = func_name or f"{func.__module__}.{func.__name__}"
 
             if asyncio.iscoroutinefunction(func):
 
                 @wraps(func)
-                async def async_wrapper(*args, **kwargs) -> T:
+                async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                     with self.profile_context(name, memory_tracking):
-                        return await func(*args, **kwargs)
+                        result = await func(*args, **kwargs)
+                        return result  # type: ignore[no-any-return]
 
-                return async_wrapper
+                return async_wrapper  # type: ignore[return-value]
             else:
 
                 @wraps(func)
-                def sync_wrapper(*args, **kwargs) -> T:
+                def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                     with self.profile_context(name, memory_tracking):
                         return func(*args, **kwargs)
 
-                return sync_wrapper
+                return sync_wrapper  # type: ignore[return-value]
 
         return decorator
 
     @contextmanager
-    def profile_context(self, operation_name: str, memory_tracking: bool = True):
+    def profile_context(
+        self, operation_name: str, memory_tracking: bool = True
+    ) -> Generator[None, None, None]:
         """
         Context manager for profiling code blocks.
 
@@ -128,10 +134,8 @@ class PerformanceProfiler:
         profiler.enable()
 
         # Memory tracking
-        memory_start = None
 
         if memory_tracking and self.enable_memory_tracking:
-            memory_start = self._get_memory_usage()
             with suppress(Exception):
                 tracemalloc.get_traced_memory()
 
@@ -147,15 +151,10 @@ class PerformanceProfiler:
             duration = end_time - start_time
 
             # Memory tracking
-            memory_current = None
             tracemalloc_current = None
             tracemalloc_peak = None
 
             if memory_tracking and self.enable_memory_tracking:
-                memory_current = self._get_memory_usage()
-                if memory_start:
-                    max(memory_start, memory_current)
-
                 with suppress(Exception):
                     tracemalloc_current, tracemalloc_peak = tracemalloc.get_traced_memory()
 
@@ -164,7 +163,7 @@ class PerformanceProfiler:
 
             # Count function calls
             stats = pstats.Stats(profiler)
-            calls_count = sum(stats.stats[key][0] for key in stats.stats)
+            calls_count = sum(stats.stats[key][0] for key in stats.stats)  # type: ignore[attr-defined]
 
             # Store result
             result = ProfileResult(
@@ -187,7 +186,7 @@ class PerformanceProfiler:
         """Get current memory usage in MB."""
         try:
             memory_info = self._process.memory_info()
-            return memory_info.rss / 1024 / 1024
+            return float(memory_info.rss / 1024 / 1024)
         except Exception:
             return 0.0
 
@@ -432,7 +431,9 @@ def get_profiler() -> PerformanceProfiler:
     return _global_profiler
 
 
-def profile(func_name: str | None = None, memory_tracking: bool = True):
+def profile(
+    func_name: str | None = None, memory_tracking: bool = True
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Convenience decorator for profiling functions.
 
@@ -445,7 +446,7 @@ def profile(func_name: str | None = None, memory_tracking: bool = True):
 
 
 @contextmanager
-def profile_block(operation_name: str, memory_tracking: bool = True):
+def profile_block(operation_name: str, memory_tracking: bool = True) -> Generator[None, None, None]:
     """
     Convenience context manager for profiling code blocks.
 

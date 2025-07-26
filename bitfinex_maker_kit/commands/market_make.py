@@ -27,7 +27,7 @@ def market_make_command(
     sell_only: bool = False,
     ignore_validation: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Create staircase market making orders (always POST_ONLY)"""
 
     # Determine side filter
@@ -79,7 +79,7 @@ def market_make(
     side_filter: str | None = None,
     ignore_validation: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Create staircase market making orders (always POST_ONLY)"""
 
     # Validate center price before proceeding

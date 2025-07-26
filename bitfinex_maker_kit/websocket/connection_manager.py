@@ -86,12 +86,12 @@ class AsyncWebSocketConnectionManager:
             "heartbeat_timeout": [],
         }
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AsyncWebSocketConnectionManager":
         """Async context manager entry."""
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.disconnect()
 
@@ -159,7 +159,7 @@ class AsyncWebSocketConnectionManager:
 
                 return False
 
-    async def _do_connect(self):
+    async def _do_connect(self) -> None:
         """Perform the actual connection."""
         await self.client.wss.start()
 
@@ -259,7 +259,7 @@ class AsyncWebSocketConnectionManager:
 
         return False
 
-    async def _heartbeat_loop(self):
+    async def _heartbeat_loop(self) -> None:
         """Heartbeat loop to monitor connection health."""
         logger.debug("Starting heartbeat loop")
 
@@ -318,7 +318,7 @@ class AsyncWebSocketConnectionManager:
             logger.error(f"Heartbeat error: {e}")
             return False
 
-    def register_event_handler(self, event_type: str, handler: Callable):
+    def register_event_handler(self, event_type: str, handler: Callable[..., Any]) -> None:
         """
         Register an event handler.
 
@@ -332,7 +332,7 @@ class AsyncWebSocketConnectionManager:
         else:
             logger.warning(f"Unknown event type: {event_type}")
 
-    def unregister_event_handler(self, event_type: str, handler: Callable):
+    def unregister_event_handler(self, event_type: str, handler: Callable[..., Any]) -> None:
         """
         Unregister an event handler.
 
@@ -347,7 +347,7 @@ class AsyncWebSocketConnectionManager:
             except ValueError:
                 logger.warning(f"Handler not found for {event_type}")
 
-    async def _emit_event(self, event_type: str, event_data: dict[str, Any]):
+    async def _emit_event(self, event_type: str, event_data: dict[str, Any]) -> None:
         """
         Emit an event to all registered handlers.
 

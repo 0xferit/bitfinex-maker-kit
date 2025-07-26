@@ -52,7 +52,7 @@ class SyncTradingFacade:
 
         return self._event_loop
 
-    def _run_async(self, coro):
+    def _run_async(self, coro: Any) -> Any:
         """Run async coroutine in sync context."""
         loop = self._get_or_create_event_loop()
 
@@ -89,9 +89,10 @@ class SyncTradingFacade:
             Tuple of (success, result_or_error)
         """
         try:
-            return self._run_async(
+            result = self._run_async(
                 self.async_service.place_order_async(symbol, side, amount, price)
             )
+            return result if isinstance(result, tuple) else (True, result)
         except Exception as e:
             logger.error(f"Error in sync place_order: {e}")
             return False, str(e)
@@ -107,7 +108,8 @@ class SyncTradingFacade:
             Tuple of (success, result_or_error)
         """
         try:
-            return self._run_async(self.async_service.cancel_order_async(order_id))
+            result = self._run_async(self.async_service.cancel_order_async(order_id))
+            return result if isinstance(result, tuple) else (True, result)
         except Exception as e:
             logger.error(f"Error in sync cancel_order: {e}")
             return False, str(e)
@@ -123,7 +125,8 @@ class SyncTradingFacade:
             List of active orders
         """
         try:
-            return self._run_async(self.async_service.get_orders_async(symbol))
+            result = self._run_async(self.async_service.get_orders_async(symbol))
+            return result if isinstance(result, list) else []
         except Exception as e:
             logger.error(f"Error in sync get_orders: {e}")
             return []
@@ -136,7 +139,8 @@ class SyncTradingFacade:
             List of wallet balance entries
         """
         try:
-            return self._run_async(self.async_service.get_wallet_balances_async())
+            result = self._run_async(self.async_service.get_wallet_balances_async())
+            return result if isinstance(result, list) else []
         except Exception as e:
             logger.error(f"Error in sync get_wallet_balances: {e}")
             return []
@@ -152,7 +156,8 @@ class SyncTradingFacade:
             Ticker data or None if error
         """
         try:
-            return self._run_async(self.async_service.get_ticker_async(symbol))
+            result = self._run_async(self.async_service.get_ticker_async(symbol))
+            return result if isinstance(result, dict) else None
         except Exception as e:
             logger.error(f"Error in sync get_ticker: {e}")
             return None
@@ -179,11 +184,12 @@ class SyncTradingFacade:
             Tuple of (success, result_or_error)
         """
         try:
-            return self._run_async(
+            result = self._run_async(
                 self.async_service.update_order_async(
                     order_id, price, amount, delta, use_cancel_recreate
                 )
             )
+            return result if isinstance(result, tuple) else (True, result)
         except Exception as e:
             logger.error(f"Error in sync update_order: {e}")
             return False, str(e)
@@ -201,7 +207,10 @@ class SyncTradingFacade:
             List of (success, result) tuples
         """
         try:
-            return self._run_async(self.async_service.batch_place_orders_async(orders))
+            result = self._run_async(self.async_service.batch_place_orders_async(orders))
+            return (
+                result if isinstance(result, list) else [(False, "Unknown error") for _ in orders]
+            )
         except Exception as e:
             logger.error(f"Error in sync batch_place_orders: {e}")
             return [(False, str(e)) for _ in orders]
@@ -217,7 +226,12 @@ class SyncTradingFacade:
             List of (success, result) tuples
         """
         try:
-            return self._run_async(self.async_service.batch_cancel_orders_async(order_ids))
+            result = self._run_async(self.async_service.batch_cancel_orders_async(order_ids))
+            return (
+                result
+                if isinstance(result, list)
+                else [(False, "Unknown error") for _ in order_ids]
+            )
         except Exception as e:
             logger.error(f"Error in sync batch_cancel_orders: {e}")
             return [(False, str(e)) for _ in order_ids]
@@ -230,7 +244,8 @@ class SyncTradingFacade:
             True if connection successful, False otherwise
         """
         try:
-            return self._run_async(self.async_service.start_websocket_async())
+            result = self._run_async(self.async_service.start_websocket_async())
+            return bool(result)
         except Exception as e:
             logger.error(f"Error in sync start_websocket: {e}")
             return False
@@ -243,7 +258,8 @@ class SyncTradingFacade:
             True if disconnection successful, False otherwise
         """
         try:
-            return self._run_async(self.async_service.stop_websocket_async())
+            result = self._run_async(self.async_service.stop_websocket_async())
+            return bool(result)
         except Exception as e:
             logger.error(f"Error in sync stop_websocket: {e}")
             return False
@@ -313,7 +329,7 @@ class SyncTradingFacade:
             logger.error(f"Error generating order statistics: {e}")
             return {"total_orders": 0, "buy_orders": 0, "sell_orders": 0, "symbols": []}
 
-    def get_client(self):
+    def get_client(self) -> Any:
         """Get the underlying Bitfinex client."""
         return self.async_service.get_client()
 
@@ -336,16 +352,21 @@ class SyncTradingFacade:
         except Exception as e:
             logger.error(f"Error closing sync trading facade: {e}")
 
-    def __enter__(self):
+    def __enter__(self) -> "SyncTradingFacade":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         """Context manager exit."""
         self.close()
 
 
-def create_sync_facade_from_container(container) -> SyncTradingFacade:
+def create_sync_facade_from_container(container: Any) -> SyncTradingFacade:
     """
     Create sync trading facade from service container.
 

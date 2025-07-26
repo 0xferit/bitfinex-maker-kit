@@ -9,7 +9,6 @@ import argparse
 from collections.abc import Callable
 
 from ..commands import (
-    auto_market_make_command,
     cancel_command,
     clear_command,
     fill_spread_command,
@@ -30,7 +29,7 @@ class CommandRouter:
     making the system easier to test and maintain.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize command router with command mappings."""
         self.command_map: dict[str, Callable] = {
             "test": self._route_test,
@@ -41,7 +40,6 @@ class CommandRouter:
             "update": self._route_update,
             "list": self._route_list,
             "market-make": self._route_market_make,
-            "auto-market-make": self._route_auto_market_make,
             "fill-spread": self._route_fill_spread,
         }
 
@@ -128,28 +126,13 @@ class CommandRouter:
             args.yes,
         )
 
-    def _route_auto_market_make(self, args: argparse.Namespace) -> None:
-        """Route auto-market-make command."""
-        auto_market_make_command(
-            args.symbol,
-            args.center,
-            args.levels,
-            args.spread,
-            args.size,
-            args.buy_only,
-            args.sell_only,
-            args.test_only,
-            args.ignore_validation,
-            args.yes,
-        )
-
     def _route_fill_spread(self, args: argparse.Namespace) -> None:
         """Route fill-spread command."""
         fill_spread_command(
             args.symbol, args.target_spread, args.size, args.center, args.dry_run, args.yes
         )
 
-    def get_available_commands(self) -> list:
+    def get_available_commands(self) -> list[str]:
         """Get list of available commands."""
         return list(self.command_map.keys())
 

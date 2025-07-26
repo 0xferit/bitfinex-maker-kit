@@ -5,6 +5,8 @@ Implements the command pattern for order cancellation operations
 with validation and execution capabilities.
 """
 
+from typing import Any
+
 from ...domain.order_id import OrderId
 from ...domain.symbol import Symbol
 from .base_command import BatchCommand, CommandContext, TransactionalCommand
@@ -19,7 +21,7 @@ class CancelOrderCommand(TransactionalCommand):
     with proper error handling.
     """
 
-    def __init__(self, order_id: int | str):
+    def __init__(self, order_id: int | str) -> None:
         """
         Initialize cancel order command.
 
@@ -53,7 +55,7 @@ class CancelOrderCommand(TransactionalCommand):
             self.order_id_obj = OrderId(self.order_id_input)
 
             # Check for placeholder orders
-            if self.order_id_obj.is_placeholder():
+            if self.order_id_obj.is_placeholder_id():
                 result.add_error("Cannot cancel placeholder orders")
                 return result
 
@@ -89,6 +91,10 @@ class CancelOrderCommand(TransactionalCommand):
         Returns:
             CommandResult with execution outcome
         """
+        # Validate order ID object is available
+        if self.order_id_obj is None:
+            return CommandResult.failure("Order ID object not initialized - run validation first")
+
         try:
             # Cancel order using trading service
             success, result_data = context.trading_service.cancel_order(self.order_id_obj)
@@ -142,7 +148,7 @@ class CancelOrdersByCriteriaCommand(BatchCommand):
         price_above: float | None = None,
         size: float | None = None,
         fail_fast: bool = False,
-    ):
+    ) -> None:
         """
         Initialize cancel orders by criteria command.
 
@@ -181,7 +187,7 @@ class CancelOrdersByCriteriaCommand(BatchCommand):
         self.price_above = price_above
         self.size_filter = size
 
-        self.matching_orders: list = []
+        self.matching_orders: list[Any] = []
 
     def validate(self, context: CommandContext) -> ValidationResult:
         """
@@ -260,7 +266,7 @@ class CancelOrdersByCriteriaCommand(BatchCommand):
         # Execute batch cancellation
         return self.execute_batch_operation(self.matching_orders, context)
 
-    def _execute_single_operation(self, order: any, context: CommandContext) -> CommandResult:
+    def _execute_single_operation(self, order: Any, context: CommandContext) -> CommandResult:
         """
         Cancel a single order within the batch.
 
@@ -293,7 +299,7 @@ class CancelOrdersByCriteriaCommand(BatchCommand):
         except Exception as e:
             return CommandResult.failure(f"Error cancelling order: {e!s}")
 
-    def _filter_orders(self, orders: list) -> list:
+    def _filter_orders(self, orders: list[Any]) -> list[Any]:
         """
         Filter orders based on criteria.
 

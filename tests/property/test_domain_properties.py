@@ -365,7 +365,7 @@ class TestCrossObjectProperties:
         amount = Amount(amount_str)
 
         # Order value calculation
-        order_value = price.value * amount.value.copy_abs()
+        order_value = price.value * abs(amount.value)
         assert order_value > 0
 
         # Average price calculation (simulate partial fills)

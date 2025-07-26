@@ -23,7 +23,7 @@ class CLIArgumentParser:
     providing better organization and testability.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the argument parser."""
         self.parser = argparse.ArgumentParser(
             description="Bitfinex API CLI Tool (using official library)"
@@ -31,9 +31,13 @@ class CLIArgumentParser:
         self.subparsers = self.parser.add_subparsers(dest="command", help="Available commands")
         self._setup_all_parsers()
 
-    def parse_args(self, args=None) -> argparse.Namespace:
+    def parse_args(self, args: list[str] | None = None) -> argparse.Namespace:
         """Parse command line arguments."""
         return self.parser.parse_args(args)
+
+    def print_help(self) -> None:
+        """Print help message for the CLI."""
+        self.parser.print_help()
 
     def _setup_all_parsers(self) -> None:
         """Set up all command parsers."""
@@ -204,57 +208,6 @@ class CLIArgumentParser:
             "--buy-only", action="store_true", help="Place only buy orders below center price"
         )
         side_group.add_argument(
-            "--sell-only", action="store_true", help="Place only sell orders above center price"
-        )
-
-        # Auto-market-make subcommand
-        parser_amm = self.subparsers.add_parser(
-            "auto-market-make", help="Automated market making with dynamic center adjustment"
-        )
-        parser_amm.add_argument(
-            "--symbol", default=DEFAULT_SYMBOL, help=f"Trading symbol (default: {DEFAULT_SYMBOL})"
-        )
-        parser_amm.add_argument(
-            "--center",
-            required=True,
-            help="Initial center price (numeric value or 'mid-range' for mid-price)",
-        )
-        parser_amm.add_argument(
-            "--levels",
-            type=int,
-            default=DEFAULT_LEVELS,
-            help=f"Number of price levels on each side (default: {DEFAULT_LEVELS})",
-        )
-        parser_amm.add_argument(
-            "--spread",
-            type=float,
-            default=DEFAULT_SPREAD_PCT,
-            help=f"Spread percentage per level (default: {DEFAULT_SPREAD_PCT}%%)",
-        )
-        parser_amm.add_argument(
-            "--size",
-            type=float,
-            default=DEFAULT_ORDER_SIZE,
-            help=f"Order size for each level (default: {DEFAULT_ORDER_SIZE})",
-        )
-        parser_amm.add_argument(
-            "--test-only",
-            action="store_true",
-            help="Place orders and exit without WebSocket monitoring (for testing)",
-        )
-        parser_amm.add_argument(
-            "--ignore-validation",
-            action="store_true",
-            help="Ignore center price validation (allows orders outside bid-ask spread)",
-        )
-        parser_amm.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
-
-        # Mutually exclusive group for side selection in auto market maker
-        auto_side_group = parser_amm.add_mutually_exclusive_group()
-        auto_side_group.add_argument(
-            "--buy-only", action="store_true", help="Place only buy orders below center price"
-        )
-        auto_side_group.add_argument(
             "--sell-only", action="store_true", help="Place only sell orders above center price"
         )
 

@@ -24,7 +24,7 @@ class OrderUpdateResult:
         order_id: int,
         message: str,
         response_data: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         self.success = success
         self.method = method
         self.order_id = order_id
@@ -40,7 +40,7 @@ class OrderUpdateService:
     and update execution while maintaining separation of concerns.
     """
 
-    def __init__(self, api_client: BitfinexAPIClient):
+    def __init__(self, api_client: BitfinexAPIClient) -> None:
         """Initialize order update service with API client."""
         self.api_client = api_client
         self.validator = OrderUpdateValidator()

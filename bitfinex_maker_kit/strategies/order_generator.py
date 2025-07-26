@@ -224,8 +224,8 @@ class OrderGenerator:
         """
         orders = self.generate_orders(center_price)
 
-        buy_capital = 0
-        sell_capital = 0
+        buy_capital = 0.0
+        sell_capital = 0.0
         buy_count = 0
         sell_count = 0
 
@@ -300,7 +300,7 @@ class OrderGenerator:
             f"Updated configuration: levels={self.levels}, spread={self.spread_pct}%, size={self.size}, filter={self.side_filter}"
         )
 
-    def copy_with_modifications(self, **kwargs) -> "OrderGenerator":
+    def copy_with_modifications(self, **kwargs: Any) -> "OrderGenerator":
         """
         Create a copy of this generator with modifications.
 

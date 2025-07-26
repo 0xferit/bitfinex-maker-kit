@@ -30,7 +30,7 @@ class PlaceOrderCommand(TransactionalCommand):
         amount: float,
         price: float | None = None,
         order_type: str = "limit",
-    ):
+    ) -> None:
         """
         Initialize place order command.
 
@@ -119,7 +119,7 @@ class PlaceOrderCommand(TransactionalCommand):
                 result.add_error(error_msg)
 
         # Market condition validations
-        if not result.has_errors() and self.order_type == "limit":
+        if not result.has_errors() and self.order_type == "limit" and self.price_obj is not None:
             ticker = context.trading_service.get_ticker(self.symbol_obj)
             if ticker:
                 bid = float(ticker.get("bid", 0))
@@ -157,6 +157,13 @@ class PlaceOrderCommand(TransactionalCommand):
         Returns:
             CommandResult with execution outcome
         """
+        # Validate required objects are available
+        if self.symbol_obj is None:
+            return CommandResult.failure("Symbol object not initialized - run validation first")
+
+        if self.amount_obj is None:
+            return CommandResult.failure("Amount object not initialized - run validation first")
+
         try:
             # Place order using trading service
             success, result_data = context.trading_service.place_order(
@@ -184,9 +191,9 @@ class PlaceOrderCommand(TransactionalCommand):
             # Prepare result data
             result_info = {
                 "order_id": str(self.placed_order_id) if self.placed_order_id else None,
-                "symbol": str(self.symbol_obj),
+                "symbol": str(self.symbol_obj) if self.symbol_obj else self.symbol_str,
                 "side": self.side,
-                "amount": float(self.amount_obj.value),
+                "amount": float(self.amount_obj.value) if self.amount_obj else self.amount_float,
                 "price": float(self.price_obj.value) if self.price_obj else None,
                 "order_type": self.order_type,
                 "raw_response": result_data,

@@ -4,11 +4,13 @@ Wallet command - Show wallet balances.
 REFACTORED: Now supports dependency injection pattern.
 """
 
+from typing import Any
+
 from ..utilities.client_factory import get_client
 from ..utilities.console import print_operation_error
 
 
-def wallet_command():
+def wallet_command() -> list[Any]:
     """Get and display wallet balances - with dependency injection support."""
     client = get_client()
 
@@ -31,7 +33,8 @@ def wallet_command():
                 print(f"{wallet_type:<15} {currency:<10} {balance:<15.6f} {available:<15.6f}")
 
         print("─" * 60)
-        return wallets
+        # Convert to list[Any] for type safety
+        return list(wallets) if wallets else []
     except Exception as e:
         print_operation_error("get wallet data", e)
         return []

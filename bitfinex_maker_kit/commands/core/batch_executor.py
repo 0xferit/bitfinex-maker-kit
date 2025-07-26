@@ -54,7 +54,7 @@ class BatchExecutor:
     with automatic rollback capabilities for failed operations.
     """
 
-    def __init__(self, executor: CommandExecutor):
+    def __init__(self, executor: CommandExecutor) -> None:
         """
         Initialize batch executor.
 
@@ -195,7 +195,7 @@ class BatchExecutor:
         self, plan: BatchExecutionPlan, options: ExecutionOptions
     ) -> dict[str, CommandResult]:
         """Execute commands respecting dependencies."""
-        results = {}
+        results: dict[str, CommandResult] = {}
         ready_commands = self._get_ready_commands(plan.commands)
 
         while ready_commands or (
@@ -242,7 +242,7 @@ class BatchExecutor:
 
     def _build_execution_graph(
         self, commands: list[Command], dependencies: list[CommandDependency]
-    ):
+    ) -> None:
         """Build execution dependency graph."""
         self.execution_graph.clear()
 
@@ -334,7 +334,7 @@ class BatchExecutor:
 
     def _perform_rollback(
         self, plan: BatchExecutionPlan, options: ExecutionOptions, results: dict[str, CommandResult]
-    ):
+    ) -> None:
         """Perform rollback of successfully executed commands."""
         logger.info(f"Starting rollback of {len(self.completed_commands)} completed commands")
 

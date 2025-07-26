@@ -201,16 +201,15 @@ class LoadPatternTester:
                 )
 
                 # Execute operations for this second
-                await self._execute_operations_batch(
+                batch_successful, batch_failed = await self._execute_operations_batch(
                     operation_factory,
                     operations_this_second,
-                    total_operations,
-                    successful_operations,
-                    failed_operations,
                     operation_times,
                 )
 
                 total_operations += operations_this_second
+                successful_operations += batch_successful
+                failed_operations += batch_failed
                 last_second = current_second
 
             # Small sleep to prevent busy waiting
@@ -250,14 +249,11 @@ class LoadPatternTester:
         self,
         operation_factory: Callable,
         operations_count: int,
-        total_operations: int,
-        successful_operations: int,
-        failed_operations: int,
         operation_times: list[float],
-    ) -> None:
+    ) -> tuple[int, int]:
         """Execute a batch of operations."""
         if operations_count <= 0:
-            return
+            return 0, 0
 
         async def single_operation():
             """Execute a single operation with timing."""
@@ -283,7 +279,9 @@ class LoadPatternTester:
         tasks = [bounded_operation() for _ in range(operations_count)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Count results (mutations are handled by reference in the calling method)
+        # Count results
+        successful_operations = 0
+        failed_operations = 0
         for result in results:
             if isinstance(result, Exception):
                 failed_operations += 1
@@ -291,6 +289,8 @@ class LoadPatternTester:
                 successful_operations += 1
             else:
                 failed_operations += 1
+
+        return successful_operations, failed_operations
 
 
 @pytest.mark.load
@@ -302,16 +302,17 @@ class TestTradingLoadPatterns:
         """Create load pattern tester."""
         return LoadPatternTester()
 
+    @pytest.mark.asyncio
     async def test_constant_trading_load(self, load_tester):
         """Test constant trading load pattern."""
         trading_service = create_mock_trading_service("normal")
         order_counter = 0
 
         def create_trading_operation():
-            def operation():
+            async def operation():
                 nonlocal order_counter
                 order_counter += 1
-                return trading_service.place_order(
+                return await trading_service.place_order(
                     symbol=Symbol("tBTCUSD"),
                     amount=Amount(f"{random.uniform(0.01, 0.1):.6f}"),
                     price=Price(f"{50000 + (order_counter % 1000)}.0"),
@@ -344,16 +345,17 @@ class TestTradingLoadPatterns:
         target_operations = [sample["target_operations"] for sample in load_samples]
         assert all(ops == 5 for ops in target_operations), "Constant load pattern not stable"
 
+    @pytest.mark.asyncio
     async def test_ramp_up_trading_load(self, load_tester):
         """Test ramp-up trading load pattern."""
         trading_service = create_mock_trading_service("normal")
         order_counter = 0
 
         def create_trading_operation():
-            def operation():
+            async def operation():
                 nonlocal order_counter
                 order_counter += 1
-                return trading_service.place_order(
+                return await trading_service.place_order(
                     symbol=Symbol("tETHUSD"),
                     amount=Amount(f"{random.uniform(0.1, 1.0):.4f}"),
                     price=Price(f"{3000 + (order_counter % 500)}.0"),
@@ -392,16 +394,17 @@ class TestTradingLoadPatterns:
             avg_late = sum(late_operations) / len(late_operations)
             assert avg_late > avg_early, "Ramp-up pattern not detected"
 
+    @pytest.mark.asyncio
     async def test_spike_trading_load(self, load_tester):
         """Test spike trading load pattern."""
         trading_service = create_mock_trading_service("normal")
         order_counter = 0
 
         def create_trading_operation():
-            def operation():
+            async def operation():
                 nonlocal order_counter
                 order_counter += 1
-                return trading_service.place_order(
+                return await trading_service.place_order(
                     symbol=Symbol("tPNKUSD"),
                     amount=Amount(f"{random.uniform(1.0, 10.0):.2f}"),
                     price=Price(f"{random.uniform(0.1, 1.0):.6f}"),
@@ -439,16 +442,17 @@ class TestTradingLoadPatterns:
         # Should have significant variation indicating spike
         assert max_operations > min_operations * 2, "Spike pattern not detected"
 
+    @pytest.mark.asyncio
     async def test_burst_trading_load(self, load_tester):
         """Test burst trading load pattern."""
         trading_service = create_mock_trading_service("normal")
         order_counter = 0
 
         def create_trading_operation():
-            def operation():
+            async def operation():
                 nonlocal order_counter
                 order_counter += 1
-                return trading_service.place_order(
+                return await trading_service.place_order(
                     symbol=Symbol(random.choice(["tBTCUSD", "tETHUSD"])),
                     amount=Amount(f"{random.uniform(0.01, 0.5):.6f}"),
                     price=Price(f"{random.uniform(30000, 60000):.2f}"),
@@ -497,6 +501,7 @@ class TestCacheLoadPatterns:
         """Create load pattern tester."""
         return LoadPatternTester()
 
+    @pytest.mark.asyncio
     async def test_wave_cache_load(self, load_tester):
         """Test wave cache load pattern."""
         cache_service = create_mock_cache_service("normal")
@@ -509,19 +514,21 @@ class TestCacheLoadPatterns:
             operation_counter = 0
 
             def create_cache_operation():
-                def operation():
+                async def operation():
                     nonlocal operation_counter
                     operation_counter += 1
 
                     # Mix of read/write operations
                     if operation_counter % 3 == 0:
-                        return cache_service.set(
+                        return await cache_service.set(
                             "wave_test",
                             f"key_{operation_counter % 200}",
                             f"new_value_{operation_counter}",
                         )
                     else:
-                        return cache_service.get("wave_test", f"key_{operation_counter % 100}")
+                        return await cache_service.get(
+                            "wave_test", f"key_{operation_counter % 100}"
+                        )
 
                 return operation
 
@@ -559,6 +566,7 @@ class TestCacheLoadPatterns:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_random_cache_load(self, load_tester):
         """Test random cache load pattern."""
         cache_service = create_mock_cache_service("normal")
@@ -567,7 +575,7 @@ class TestCacheLoadPatterns:
             operation_counter = 0
 
             def create_cache_operation():
-                def operation():
+                async def operation():
                     nonlocal operation_counter
                     operation_counter += 1
 
@@ -579,17 +587,19 @@ class TestCacheLoadPatterns:
                     key = f"random_key_{operation_counter % 50}"  # Limited key space
 
                     if operation_type == "get":
-                        return cache_service.get("random_test", key)
+                        return await cache_service.get("random_test", key)
                     elif operation_type == "set":
-                        return cache_service.set("random_test", key, f"value_{operation_counter}")
+                        return await cache_service.set(
+                            "random_test", key, f"value_{operation_counter}"
+                        )
                     elif operation_type == "delete":
-                        return cache_service.delete("random_test", key)
+                        return await cache_service.delete("random_test", key)
                     else:  # get_or_set
 
                         async def fetch():
                             return f"fetched_{operation_counter}"
 
-                        return cache_service.get_or_set("random_test", key, fetch)
+                        return await cache_service.get_or_set("random_test", key, fetch)
 
                 return operation
 
@@ -638,6 +648,7 @@ class TestMixedLoadPatterns:
         """Create load pattern tester."""
         return LoadPatternTester()
 
+    @pytest.mark.asyncio
     async def test_mixed_system_ramp_up(self, load_tester):
         """Test mixed system operations with ramp-up load."""
         trading_service = create_mock_trading_service("normal")
@@ -647,14 +658,14 @@ class TestMixedLoadPatterns:
             operation_counter = 0
 
             def create_mixed_operation():
-                def operation():
+                async def operation():
                     nonlocal operation_counter
                     operation_counter += 1
 
                     # Alternate between trading and cache operations
                     if operation_counter % 2 == 0:
                         # Trading operation
-                        return trading_service.place_order(
+                        return await trading_service.place_order(
                             symbol=Symbol("tBTCUSD"),
                             amount=Amount(f"{random.uniform(0.01, 0.1):.6f}"),
                             price=Price(f"{random.uniform(45000, 55000):.2f}"),
@@ -664,9 +675,9 @@ class TestMixedLoadPatterns:
                         # Cache operation
                         key = f"mixed_key_{operation_counter % 100}"
                         if random.random() < 0.7:  # 70% reads
-                            return cache_service.get("mixed_system", key)
+                            return await cache_service.get("mixed_system", key)
                         else:  # 30% writes
-                            return cache_service.set(
+                            return await cache_service.set(
                                 "mixed_system", key, f"value_{operation_counter}"
                             )
 
@@ -700,6 +711,7 @@ class TestMixedLoadPatterns:
         finally:
             await cache_service.cleanup()
 
+    @pytest.mark.asyncio
     async def test_complex_burst_pattern(self, load_tester):
         """Test complex burst pattern with multiple operation types."""
         trading_service = create_mock_trading_service("normal")
@@ -709,7 +721,7 @@ class TestMixedLoadPatterns:
             operation_counter = 0
 
             def create_complex_operation():
-                def operation():
+                async def operation():
                     nonlocal operation_counter
                     operation_counter += 1
 
@@ -720,7 +732,7 @@ class TestMixedLoadPatterns:
                     )[0]
 
                     if operation_type == "place_order":
-                        return trading_service.place_order(
+                        return await trading_service.place_order(
                             symbol=Symbol(random.choice(["tBTCUSD", "tETHUSD", "tPNKUSD"])),
                             amount=Amount(f"{random.uniform(0.001, 1.0):.6f}"),
                             price=Price(f"{random.uniform(100, 100000):.2f}"),
@@ -729,10 +741,10 @@ class TestMixedLoadPatterns:
                     elif operation_type == "cancel_order":
                         # Try to cancel a random order
                         order_id = random.randint(10000000, 99999999)
-                        return trading_service.cancel_order(str(order_id))
+                        return await trading_service.cancel_order(str(order_id))
                     elif operation_type == "cache_lookup":
                         key = f"complex_key_{operation_counter % 200}"
-                        return cache_service.get("complex_test", key)
+                        return await cache_service.get("complex_test", key)
                     else:  # batch_cache
                         # Perform multiple cache operations
                         async def batch_cache_ops():
@@ -744,7 +756,7 @@ class TestMixedLoadPatterns:
                                 )
                             return all(results)
 
-                        return batch_cache_ops()
+                        return await batch_cache_ops()
 
                 return operation
 

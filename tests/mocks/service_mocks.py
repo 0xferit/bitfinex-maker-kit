@@ -73,8 +73,30 @@ class MockTradingService:
         self, symbol, amount, price, side, order_type: str = "EXCHANGE LIMIT", **kwargs
     ) -> dict[str, Any]:
         """Mock place order operation."""
+        # Validate inputs first
+        try:
+            # Check for domain object types and basic validation
+            symbol_str = str(symbol)
+            amount_str = str(amount)
+            price_str = str(price)
+
+            # Basic validation
+            price_val = float(price_str)
+            amount_val = float(amount_str)
+
+            if price_val <= 0:
+                raise ValueError(f"Price must be positive, got {price_val}")
+            if amount_val == 0:
+                raise ValueError("Amount cannot be zero")
+            if side not in ["buy", "sell"]:
+                raise ValueError(f"Side must be 'buy' or 'sell', got {side}")
+
+        except (ValueError, TypeError) as e:
+            # Re-raise validation errors to match expected behavior
+            raise e
+
         self._record_operation(
-            "place_order", symbol=str(symbol), amount=str(amount), price=str(price), side=side
+            "place_order", symbol=symbol_str, amount=amount_str, price=price_str, side=side
         )
         await self._simulate_delay()
 
@@ -84,9 +106,9 @@ class MockTradingService:
 
         order = self.fixtures.create_order(
             order_id=order_id,
-            symbol=str(symbol),
-            amount=str(amount),
-            price=str(price),
+            symbol=symbol_str,
+            amount=amount_str,
+            price=price_str,
             side=side,
             order_type=order_type,
         )
@@ -105,9 +127,16 @@ class MockTradingService:
 
         if order_id_int in self.orders:
             order = self.orders[order_id_int]
-            canceled_order = order.mark_canceled()
-            self.orders[order_id_int] = canceled_order
-            return canceled_order.to_dict()
+            # Check if order is already canceled to prevent double cancellation
+            if order.status == "CANCELED":
+                raise Exception(f"Order {order_id} is already canceled")
+            # Only cancel if order is active
+            if order.status == "ACTIVE":
+                canceled_order = order.mark_canceled()
+                self.orders[order_id_int] = canceled_order
+                return canceled_order.to_dict()
+            else:
+                raise Exception(f"Order {order_id} cannot be canceled (status: {order.status})")
         else:
             raise Exception(f"Order {order_id} not found")
 
@@ -153,9 +182,8 @@ class MockTradingService:
 
         active_orders = []
         for order in self.orders.values():
-            if order.status == "ACTIVE":
-                if symbol is None or order.symbol == str(symbol):
-                    active_orders.append(order.to_dict())
+            if order.status == "ACTIVE" and (symbol is None or order.symbol == str(symbol)):
+                active_orders.append(order.to_dict())
 
         return active_orders
 
@@ -179,11 +207,10 @@ class MockTradingService:
         canceled_orders = []
 
         for order_id, order in self.orders.items():
-            if order.status == "ACTIVE":
-                if symbol is None or order.symbol == str(symbol):
-                    canceled_order = order.mark_canceled()
-                    self.orders[order_id] = canceled_order
-                    canceled_orders.append(canceled_order.to_dict())
+            if order.status == "ACTIVE" and (symbol is None or order.symbol == str(symbol)):
+                canceled_order = order.mark_canceled()
+                self.orders[order_id] = canceled_order
+                canceled_orders.append(canceled_order.to_dict())
 
         return canceled_orders
 
@@ -328,8 +355,10 @@ class MockCacheService:
         self._record_operation("set", namespace=namespace, key=key, ttl=cache_ttl)
 
         # Evict if at capacity
-        if len(self.cache) >= self.max_size and cache_key not in self.cache:
+        while len(self.cache) >= self.max_size and cache_key not in self.cache:
             self._evict_lru()
+            if len(self.cache) == 0:  # Safety check to prevent infinite loop
+                break
 
         self.cache[cache_key] = {"value": value, "expires": expires, "accessed": time.time()}
 
@@ -351,12 +380,19 @@ class MockCacheService:
         self, namespace: str, key: str, fetch_func: Callable, ttl: float | None = None
     ) -> Any:
         """Get value from cache or fetch and cache if not found."""
-        value = await self.get(namespace, key)
+        cache_key = self._make_key(namespace, key)
 
-        if value is not None:
-            return value
+        # Check if key exists in cache (not just if value is not None)
+        if cache_key in self.cache:
+            entry = self.cache[cache_key]
+            if not self._is_expired(entry):
+                self.hits += 1
+                return entry["value"]  # Return actual cached value, even if None
+            else:
+                del self.cache[cache_key]
 
-        # Fetch value
+        # Key not found or expired, fetch value
+        self.misses += 1
         if asyncio.iscoroutinefunction(fetch_func):
             value = await fetch_func()
         else:

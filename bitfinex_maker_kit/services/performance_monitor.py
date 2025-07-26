@@ -154,8 +154,25 @@ class PerformanceMonitor:
         if self._monitoring_task is not None:
             return
 
-        self._monitoring_task = asyncio.create_task(self._monitoring_loop())
-        logger.info("Performance monitoring started")
+        try:
+            # Only start monitoring if there's a running event loop
+            loop = asyncio.get_running_loop()
+            self._monitoring_task = loop.create_task(self._monitoring_loop())
+            logger.info("Performance monitoring started")
+        except RuntimeError:
+            # No running event loop - defer monitoring start
+            logger.debug("No running event loop - performance monitoring will be started later")
+            pass
+
+    async def ensure_monitoring_started(self) -> None:
+        """Ensure monitoring is started in an async context."""
+        if self._monitoring_task is None and not self._shutdown:
+            try:
+                loop = asyncio.get_running_loop()
+                self._monitoring_task = loop.create_task(self._monitoring_loop())
+                logger.info("Performance monitoring started in async context")
+            except RuntimeError:
+                logger.warning("Could not start performance monitoring - no event loop")
 
     async def stop_monitoring(self) -> None:
         """Stop background monitoring."""
@@ -257,7 +274,9 @@ class PerformanceMonitor:
             point = MetricPoint(timestamp=time.time(), value=duration, labels=labels or {})
             self._metrics[name].append(point)
 
-    def time_operation(self, operation_name: str, labels: dict[str, str] | None = None):
+    def time_operation(
+        self, operation_name: str, labels: dict[str, str] | None = None
+    ) -> "TimingContext":
         """
         Context manager for timing operations.
 
@@ -441,15 +460,15 @@ class PerformanceMonitor:
         with self._lock:
             # Export counters
             for name, value in self._counters.items():
-                prometheus_name = name.replace(".", "_")
+                prometheus_name: str = name.replace(".", "_")
                 lines.append(f"# TYPE {prometheus_name} counter")
                 lines.append(f"{prometheus_name} {value} {current_time}")
 
             # Export gauges
-            for name, value in self._gauges.items():
-                prometheus_name = name.replace(".", "_")
-                lines.append(f"# TYPE {prometheus_name} gauge")
-                lines.append(f"{prometheus_name} {value} {current_time}")
+            for gauge_name, gauge_value in self._gauges.items():
+                gauge_prometheus_name: str = gauge_name.replace(".", "_")
+                lines.append(f"# TYPE {gauge_prometheus_name} gauge")
+                lines.append(f"{gauge_prometheus_name} {gauge_value} {current_time}")
 
         return "\n".join(lines)
 
@@ -530,13 +549,18 @@ class TimingContext:
         self.monitor = monitor
         self.operation_name = operation_name
         self.labels = labels
-        self.start_time = None
+        self.start_time: float | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "TimingContext":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         if self.start_time:
             duration = time.time() - self.start_time
             self.monitor.record_timer(self.operation_name, duration, self.labels)

@@ -10,7 +10,7 @@ from .argument_parser import create_cli_parser
 from .command_router import create_command_router
 
 
-def main():
+def main() -> int:
     """
     Main CLI entry point using focused components.
 

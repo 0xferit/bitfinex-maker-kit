@@ -5,12 +5,18 @@ Authentication and API client management for Bitfinex CLI.
 import contextlib
 import os
 import sys
+from typing import Any
 
 from ..bitfinex_client import create_wrapper_client
 
+# Module-level flag to track if we've shown the env file message
+_shown_env_message = False
 
-def get_credentials():
+
+def get_credentials() -> tuple[str, str]:
     """Get API credentials from environment variables or .env file"""
+    global _shown_env_message
+
     # First try environment variables
     api_key = os.getenv("BFX_API_KEY")
     api_secret = os.getenv("BFX_API_SECRET")
@@ -41,11 +47,10 @@ def get_credentials():
                             elif key == "BFX_API_SECRET":
                                 api_secret = value
 
-                if api_key and api_secret:
+                if api_key and api_secret and not _shown_env_message:
                     # Only show this message once per session
-                    if not hasattr(get_credentials, "_shown_env_message"):
-                        print("📁 Loaded API credentials from .env file")
-                        get_credentials._shown_env_message = True
+                    print("📁 Loaded API credentials from .env file")
+                    _shown_env_message = True
             except Exception as e:
                 print(f"⚠️  Error reading .env file: {e}")
 
@@ -72,7 +77,7 @@ def get_credentials():
     return api_key, api_secret
 
 
-def create_client():
+def create_client() -> Any:
     """
     Create and return a Bitfinex wrapper client with POST_ONLY enforcement.
 
@@ -83,7 +88,7 @@ def create_client():
     return create_wrapper_client(api_key, api_secret)
 
 
-def test_api_connection():
+def test_api_connection() -> bool:
     """Test API connection by calling wallets endpoint"""
     print("Testing API connection...")
 
@@ -102,7 +107,7 @@ def test_api_connection():
         return False
 
 
-def test_websocket_connection():
+def test_websocket_connection() -> bool:
     """Test WebSocket connection and authentication using focused helper functions."""
     print("Testing WebSocket connection...")
 
@@ -116,7 +121,12 @@ def test_websocket_connection():
         from concurrent.futures import TimeoutError as FutureTimeoutError
 
         # Use threading approach with focused helper functions
-        result_container = {"success": False, "error": None, "authenticated": False, "wallets": []}
+        result_container: dict[str, Any] = {
+            "success": False,
+            "error": None,
+            "authenticated": False,
+            "wallets": [],
+        }
 
         # Run WebSocket test in thread with timeout
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -138,7 +148,7 @@ def test_websocket_connection():
         return False
 
 
-def _websocket_test_worker(client, result_container):
+def _websocket_test_worker(client: Any, result_container: dict[str, Any]) -> None:
     """Worker function to test WebSocket in separate thread."""
     import asyncio
 
@@ -157,7 +167,7 @@ def _websocket_test_worker(client, result_container):
             loop.close()
 
 
-async def _test_websocket_async(client, result_container):
+async def _test_websocket_async(client: Any, result_container: dict[str, Any]) -> None:
     """Async function to test WebSocket connection with focused handlers."""
     wss = client.wss
 
@@ -176,17 +186,15 @@ async def _test_websocket_async(client, result_container):
         result_container["error"] = f"WebSocket connection error: {ws_error}"
     finally:
         # Clean up - try to close WebSocket connection
-        try:
+        with contextlib.suppress(Exception):
             await wss.close()
-        except Exception:
-            pass  # Ignore close errors
 
 
-def _setup_websocket_test_handlers(wss, client, result_container):
+def _setup_websocket_test_handlers(wss: Any, client: Any, result_container: dict[str, Any]) -> None:
     """Set up WebSocket event handlers for testing."""
 
     @wss.on("authenticated")
-    async def on_authenticated(data):
+    async def on_authenticated(data: Any) -> None:
         print("✅ WebSocket authenticated successfully!")
         result_container["authenticated"] = True
 
@@ -217,21 +225,21 @@ def _setup_websocket_test_handlers(wss, client, result_container):
             await wss.close()
             print("   🔌 WebSocket test completed - connection closed")
         except Exception:
-            pass  # Ignore close errors
+            pass  # nosec B110 - Expected behavior: ignore WebSocket close errors during cleanup
 
     @wss.on("on-req-notification")
-    def on_notification(notification):
+    def on_notification(notification: Any) -> None:
         # Handle any notifications during testing
         if hasattr(notification, "status") and notification.status == "ERROR":
             result_container["error"] = f"WebSocket notification error: {notification.text}"
 
 
-async def _wait_for_websocket_test_completion(result_container):
+async def _wait_for_websocket_test_completion(result_container: dict[str, Any]) -> None:
     """Wait for WebSocket test completion with proper timeout handling."""
     import asyncio
 
-    max_wait_time = 18  # 18 seconds timeout for testing
-    wait_time = 0
+    max_wait_time = 18.0  # 18 seconds timeout for testing
+    wait_time = 0.0
 
     while wait_time < max_wait_time:
         await asyncio.sleep(0.5)
@@ -258,7 +266,7 @@ async def _wait_for_websocket_test_completion(result_container):
             result_container["error"] = "WebSocket test timed out"
 
 
-def _process_websocket_test_results(result_container):
+def _process_websocket_test_results(result_container: dict[str, Any]) -> bool:
     """Process WebSocket test results and return success status."""
     if result_container["error"]:
         print(f"❌ WebSocket test failed: {result_container['error']}")
@@ -270,7 +278,7 @@ def _process_websocket_test_results(result_container):
         return False
 
 
-def test_comprehensive():
+def test_comprehensive() -> bool:
     """Test both REST API and WebSocket connections"""
     print("🧪 Running Comprehensive API Tests...")
     print("=" * 50)

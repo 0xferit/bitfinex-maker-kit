@@ -14,8 +14,16 @@ def fill_spread_command(
     center: str | None = None,
     dry_run: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Fill the spread gap with equally spaced orders to achieve spread less than target (always POST_ONLY)"""
+
+    # Validate required parameters
+    if target_spread is None:
+        print("❌ Error: target_spread is required")
+        return
+    if size is None:
+        print("❌ Error: size is required")
+        return
 
     # Resolve center price if provided
     center_price = None
@@ -34,7 +42,7 @@ def fill_spread(
     center: float | None = None,
     dry_run: bool = False,
     yes: bool = False,
-):
+) -> None:
     """Fill the spread gap with equally spaced orders to achieve spread less than target (always POST_ONLY)"""
 
     print("\n🎯 Fill Spread Setup:")

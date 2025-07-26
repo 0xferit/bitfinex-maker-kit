@@ -6,6 +6,7 @@ replacing duplicated patterns found across command modules.
 """
 
 from collections.abc import Callable
+from typing import Any
 
 from .client_factory import get_client
 from .console import print_operation_error
@@ -123,7 +124,7 @@ def group_orders_by_symbol(orders: list) -> dict:
     Returns:
         Dictionary mapping symbols to lists of orders
     """
-    grouped = {}
+    grouped: dict[str, list[Any]] = {}
     for order in orders:
         symbol = order.symbol
         if symbol not in grouped:
@@ -157,7 +158,7 @@ def count_orders_by_type(orders: list) -> dict:
     Returns:
         Dictionary mapping order types to counts
     """
-    counts = {}
+    counts: dict[str, int] = {}
     for order in orders:
         order_type = order.order_type
         counts[order_type] = counts.get(order_type, 0) + 1

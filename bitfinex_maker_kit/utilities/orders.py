@@ -5,22 +5,30 @@ Core utilities for order submission and management.
 REFACTORED: Now supports dependency injection pattern.
 """
 
+from typing import Any
+
 from .client_factory import get_client
 from .constants import OrderSide, OrderSubmissionError, ValidationError
 from .response_parser import OrderResponseParser
 
 
-def _extract_order_id(response) -> str | None:
+def _extract_order_id(response: Any) -> str | None:
     """
     Extract order ID from API response.
 
     DEPRECATED: Use OrderResponseParser.extract_order_id() directly.
     This function is maintained for backward compatibility.
     """
-    return OrderResponseParser.extract_order_id(response)
+    # The OrderResponseParser.extract_order_id returns int | str | None
+    # but this function is declared to return str | None
+    # We convert int to str for consistency
+    result = OrderResponseParser.extract_order_id(response)
+    return str(result) if isinstance(result, int) else result
 
 
-def submit_order(symbol: str, side: str | OrderSide, amount: float, price: float | None = None):
+def submit_order(
+    symbol: str, side: str | OrderSide, amount: float, price: float | None = None
+) -> Any:
     """
     Centralized order submission function that ENFORCES POST_ONLY for all limit orders.
 
@@ -55,7 +63,7 @@ def submit_order(symbol: str, side: str | OrderSide, amount: float, price: float
         raise OrderSubmissionError(f"Order submission failed: {e}") from e
 
 
-def cancel_order(order_id: int):
+def cancel_order(order_id: int) -> tuple[bool, str]:
     """Cancel a specific order by ID - with dependency injection support."""
     client = get_client()
 
@@ -72,7 +80,7 @@ def update_order(
     amount: float | None = None,
     delta: float | None = None,
     use_cancel_recreate: bool = False,
-):
+) -> tuple[bool, Any]:
     """
     Update an existing order atomically using WebSocket (default) or cancel-and-recreate.
 

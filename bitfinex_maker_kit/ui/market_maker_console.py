@@ -168,7 +168,7 @@ class MarketMakerUI:
 
     def display_shutdown_start(self) -> None:
         """Display shutdown start message."""
-        print("\n\n🛑 Shutting down auto market maker...")
+        print("\n\n🛑 Shutting down market maker...")
 
     def display_shutdown_complete(self) -> None:
         """Display shutdown completion."""

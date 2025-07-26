@@ -19,10 +19,10 @@ class Symbol:
 
     value: str
 
-    # Bitfinex symbol pattern: starts with 't', followed by base and quote currencies
-    _BITFINEX_PATTERN = re.compile(r"^t[A-Z]{3,5}[A-Z]{3,4}$")
+    # Bitfinex symbol pattern: starts with 't' or 'f', followed by base and quote currencies
+    _BITFINEX_PATTERN = re.compile(r"^[tf][A-Z]{3,5}[A-Z]{3,4}$")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate symbol after initialization."""
         if not self.value:
             raise ValueError("Symbol cannot be empty")
@@ -34,7 +34,7 @@ class Symbol:
         if not self._BITFINEX_PATTERN.match(self.value):
             raise ValueError(
                 f"Invalid Bitfinex symbol format: {self.value}. "
-                f"Expected format: t<BASE><QUOTE> (e.g., tBTCUSD, tETHUSD)"
+                f"Expected format: [t|f]<BASE><QUOTE> (e.g., tBTCUSD, fBTCUSD, tETHUSD)"
             )
 
     @classmethod
@@ -122,7 +122,7 @@ class Symbol:
         """String representation."""
         return self.value
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equality comparison."""
         if isinstance(other, Symbol):
             return self.value == other.value
@@ -133,3 +133,7 @@ class Symbol:
     def __hash__(self) -> int:
         """Hash for use in sets and dicts."""
         return hash(self.value)
+
+    def __repr__(self) -> str:
+        """Representation for debugging."""
+        return f"Symbol('{self.value}')"

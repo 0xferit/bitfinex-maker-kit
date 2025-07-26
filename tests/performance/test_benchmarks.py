@@ -182,10 +182,7 @@ class TestCachePerformanceBenchmarks:
 
         # Perform mixed get operations (80% existing keys, 20% new keys)
         for i in range(iterations):
-            if i % 5 == 0:  # 20% miss
-                key = f"key_new_{i}"
-            else:  # 80% hit
-                key = f"key_{i % 50}"
+            key = f"key_new_{i}" if i % 5 == 0 else f"key_{i % 50}"
 
             result = await cache_service.get("benchmark", key)
             if result is not None:

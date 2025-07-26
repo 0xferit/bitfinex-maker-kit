@@ -140,7 +140,7 @@ def load_config_from_file(file_path: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
     with open(file_path) as f:
-        config = json.load(f)
+        config: dict[str, Any] = json.load(f)
 
     return config
 
@@ -243,7 +243,7 @@ def validate_environment_setup() -> dict[str, Any]:
     Returns:
         Dictionary with validation results
     """
-    results = {
+    results: dict[str, Any] = {
         "environment": get_current_environment().value,
         "credentials_available": False,
         "config_file_exists": False,
@@ -258,7 +258,8 @@ def validate_environment_setup() -> dict[str, Any]:
     if api_key and api_secret:
         results["credentials_available"] = True
     else:
-        results["errors"].append("API credentials not found in environment variables")
+        if isinstance(results["errors"], list):
+            results["errors"].append("API credentials not found in environment variables")
 
     # Check for config file
     env = get_current_environment()
@@ -269,11 +270,20 @@ def validate_environment_setup() -> dict[str, Any]:
         results["config_file_exists"] = True
         results["config_file_path"] = config_path
     else:
-        results["warnings"].append(f"No config file found at {config_path}")
+        if isinstance(results["warnings"], list):
+            results["warnings"].append(f"No config file found at {config_path}")
 
     # Environment-specific validations
-    if env == Environment.PRODUCTION:
-        if os.getenv("MAKER_KIT_DRY_RUN", "").lower() in ["true", "1", "yes"]:
-            results["warnings"].append("Dry run mode enabled in production environment")
+    if (
+        env == Environment.PRODUCTION
+        and os.getenv("MAKER_KIT_DRY_RUN", "").lower()
+        in [
+            "true",
+            "1",
+            "yes",
+        ]
+        and isinstance(results["warnings"], list)
+    ):
+        results["warnings"].append("Dry run mode enabled in production environment")
 
     return results

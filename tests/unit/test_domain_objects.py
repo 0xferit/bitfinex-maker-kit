@@ -135,7 +135,7 @@ class TestPrice:
 
         # Multiplication
         result_mul = price1 * Decimal("2")
-        assert result_mul.value == Decimal("101001.00")
+        assert result_mul.value == Decimal("100001.00")
 
         # Division
         result_div = price1 / Decimal("2")

@@ -22,7 +22,7 @@ class UpdateStrategyFactory:
     capabilities, with intelligent fallback logic.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the factory with available strategies."""
         self._websocket_strategy = WebSocketUpdateStrategy()
         self._cancel_recreate_strategy = CancelRecreateStrategy()
@@ -88,7 +88,7 @@ class UpdateStrategyFactory:
         """Get all available strategies."""
         return [self._websocket_strategy, self._cancel_recreate_strategy]
 
-    def get_strategy_info(self) -> dict:
+    def get_strategy_info(self) -> dict[str, dict[str, str]]:
         """Get information about all available strategies."""
         return {
             "websocket_atomic": {

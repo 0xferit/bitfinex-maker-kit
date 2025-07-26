@@ -251,7 +251,10 @@ def performance_monitor() -> Generator[PerformanceMonitor, None]:
     monitor = create_performance_monitor(monitoring_interval=1.0, retention_period=60.0)
     monitor.start_monitoring()
     yield monitor
-    asyncio.create_task(monitor.stop_monitoring())
+    # Schedule cleanup task
+    task = asyncio.create_task(monitor.stop_monitoring())
+    # Store reference to prevent garbage collection
+    _cleanup_task = task
 
 
 @pytest.fixture
