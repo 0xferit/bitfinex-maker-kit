@@ -267,7 +267,8 @@ async def auto_market_make(symbol: str, center_price: float, levels: int, spread
     # Set up signal handler for clean shutdown
     def signal_handler(sig, frame):
         print("\n🛑 Received shutdown signal...")
-        asyncio.create_task(amm.stop())
+        # Store task reference to prevent garbage collection
+        _ = asyncio.create_task(amm.stop())  # noqa: RUF006
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)

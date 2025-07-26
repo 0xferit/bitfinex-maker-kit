@@ -440,7 +440,8 @@ class CacheStateMachine(RuleBasedStateMachine):
     
     def teardown(self):
         """Clean up after testing."""
-        asyncio.create_task(self.cache_service.cleanup())
+        # Store task reference to prevent garbage collection during cleanup
+        cleanup_task = asyncio.create_task(self.cache_service.cleanup())  # noqa: RUF006
 
 
 # Test the stateful machine

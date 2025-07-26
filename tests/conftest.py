@@ -272,7 +272,9 @@ def performance_monitor() -> Generator[PerformanceMonitor, None]:
     monitor = create_performance_monitor(monitoring_interval=1.0, retention_period=60.0)
     monitor.start_monitoring()
     yield monitor
-    asyncio.create_task(monitor.stop_monitoring())
+    # Store task reference to prevent garbage collection during cleanup
+    cleanup_task = asyncio.create_task(monitor.stop_monitoring())  # noqa: RUF006
+    # We don't await here as this is synchronous fixture cleanup
 
 
 @pytest.fixture

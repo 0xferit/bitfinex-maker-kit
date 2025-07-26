@@ -44,6 +44,9 @@ class WebSocketEventHandler:
         # Event tracking
         self._authenticated = False
         self._handlers_setup = False
+        
+        # Background task tracking for callbacks
+        self._background_tasks: set = set()
     
     def setup_handlers(self) -> None:
         """Setup all WebSocket event handlers."""
@@ -75,6 +78,13 @@ class WebSocketEventHandler:
         
         self._handlers_setup = True
         logger.info("WebSocket event handlers setup complete")
+    
+    def _create_background_task(self, coro):
+        """Create and track a background task."""
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
     
     def _handle_order_update(self, order: Order) -> None:
         """Handle order update events."""
@@ -114,7 +124,7 @@ class WebSocketEventHandler:
         # Trigger order adjustment callback
         if self.on_order_fill_callback:
             try:
-                asyncio.create_task(self.on_order_fill_callback(fill_price, "full"))
+                self._create_background_task(self.on_order_fill_callback(fill_price, "full"))
             except Exception as e:
                 logger.error(f"Error in order fill callback: {e}")
         
@@ -143,7 +153,7 @@ class WebSocketEventHandler:
             # Trigger order adjustment callback
             if self.on_order_fill_callback:
                 try:
-                    asyncio.create_task(self.on_order_fill_callback(fill_price, "significant"))
+                    self._create_background_task(self.on_order_fill_callback(fill_price, "significant"))
                 except Exception as e:
                     logger.error(f"Error in order fill callback: {e}")
         else:

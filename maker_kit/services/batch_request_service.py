@@ -125,6 +125,9 @@ class BatchRequestService:
         # Concurrency control
         self._semaphore = asyncio.Semaphore(self.config.max_concurrent_batches)
         self._shutdown = False
+        
+        # Background task tracking
+        self._background_tasks: Set[asyncio.Task] = set()
     
     def register_batch_handler(self, request_type: str, handler: Callable) -> None:
         """
@@ -220,15 +223,23 @@ class BatchRequestService:
         
         if pending_count >= self.config.max_batch_size:
             # Process immediately if batch is full
-            asyncio.create_task(self._process_batch(request_type))
+            task = asyncio.create_task(self._process_batch(request_type))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         else:
             # Schedule processing after timeout
             loop = asyncio.get_event_loop()
             timer = loop.call_later(
                 self.config.batch_timeout,
-                lambda: asyncio.create_task(self._process_batch(request_type))
+                lambda: self._create_background_task(request_type)
             )
             self._batch_timers[request_type] = timer
+    
+    def _create_background_task(self, request_type: str) -> None:
+        """Create and track a background task for batch processing."""
+        task = asyncio.create_task(self._process_batch(request_type))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
     
     async def _process_batch(self, request_type: str) -> None:
         """Process a batch of requests."""

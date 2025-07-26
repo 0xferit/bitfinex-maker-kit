@@ -14,6 +14,7 @@ from maker_kit.domain.amount import Amount
 from maker_kit.domain.order_id import OrderId
 from maker_kit.services.container import create_service_container
 from maker_kit.services.monitored_trading_service import create_monitored_trading_service
+from maker_kit.utilities.constants import OrderSubmissionError
 from ..mocks.client_mocks import create_mock_client, create_mock_async_client
 from ..mocks.service_mocks import create_mock_performance_monitor, create_mock_cache_service
 from ..fixtures.trading_data import TradingFixtures
@@ -242,10 +243,10 @@ class TestMonitoredTradingServiceIntegration:
         """Test error tracking integration."""
         # Simulate API error
         mock_client = monitored_trading_service._trading_service.get_client()
-        mock_client.submit_order.side_effect = Exception("API Error")
+        mock_client.submit_order.side_effect = OrderSubmissionError("API Error")
         
         # Attempt operation that will fail
-        with pytest.raises(Exception):
+        with pytest.raises(OrderSubmissionError):
             await monitored_trading_service.place_order(
                 symbol=Symbol('tBTCUSD'),
                 amount=Amount('0.1'),
