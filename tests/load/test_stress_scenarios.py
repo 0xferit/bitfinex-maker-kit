@@ -1,5 +1,5 @@
 """
-Comprehensive stress testing scenarios for Maker-Kit.
+Comprehensive stress testing scenarios for Bitfinex-Maker-Kit.
 
 Tests system behavior under extreme load conditions, resource exhaustion,
 and concurrent access patterns to validate production readiness.

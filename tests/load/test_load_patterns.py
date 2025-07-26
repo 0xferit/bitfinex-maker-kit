@@ -1,5 +1,5 @@
 """
-Load pattern testing for Maker-Kit.
+Load pattern testing for Bitfinex-Maker-Kit.
 
 Tests various load patterns and usage scenarios to validate system
 behavior under different traffic patterns and user behaviors.

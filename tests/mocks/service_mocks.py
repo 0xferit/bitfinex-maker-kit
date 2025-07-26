@@ -70,7 +70,7 @@ class MockTradingService:
         return Mock()
 
     async def place_order(
-        self, symbol, amount, price, side, order_type: str = "EXCHANGE LIMIT", **kwargs
+        self, symbol, side, amount, price=None, order_type: str = "EXCHANGE LIMIT", **kwargs
     ) -> dict[str, Any]:
         """Mock place order operation."""
         # Validate inputs first
@@ -116,6 +116,51 @@ class MockTradingService:
         self.orders[order_id] = order
         return order.to_dict()
 
+    def place_order_sync(
+        self, symbol, side, amount, price=None, order_type: str = "EXCHANGE LIMIT", **kwargs
+    ) -> tuple[bool, dict[str, Any]]:
+        """Sync version of place_order for compatibility."""
+        try:
+            # Validate inputs first
+            symbol_str = str(symbol)
+            amount_str = str(amount)
+            price_str = str(price) if price else "0.0"
+
+            # Basic validation
+            if price:
+                price_val = float(price_str)
+                if price_val <= 0:
+                    return False, f"Price must be positive, got {price_val}"
+
+            amount_val = float(amount_str)
+            if amount_val == 0:
+                return False, "Amount cannot be zero"
+            if side not in ["buy", "sell"]:
+                return False, f"Side must be 'buy' or 'sell', got {side}"
+
+            self._record_operation(
+                "place_order", symbol=symbol_str, amount=amount_str, price=price_str, side=side
+            )
+
+            # Create order
+            order_id = self.order_counter
+            self.order_counter += 1
+
+            order = self.fixtures.create_order(
+                order_id=order_id,
+                symbol=symbol_str,
+                amount=amount_str,
+                price=price_str,
+                side=side,
+                order_type=order_type,
+            )
+
+            self.orders[order_id] = order
+            return True, order.to_dict()
+
+        except Exception as e:
+            return False, str(e)
+
     async def cancel_order(self, order_id: str, symbol=None) -> dict[str, Any]:
         """Mock cancel order operation."""
         self._record_operation(
@@ -139,6 +184,33 @@ class MockTradingService:
                 raise Exception(f"Order {order_id} cannot be canceled (status: {order.status})")
         else:
             raise Exception(f"Order {order_id} not found")
+
+    def cancel_order_sync(self, order_id: str, symbol=None) -> tuple[bool, dict[str, Any]]:
+        """Sync version of cancel_order for compatibility."""
+        try:
+            self._record_operation(
+                "cancel_order", order_id=order_id, symbol=str(symbol) if symbol else None
+            )
+
+            order_id_int = int(order_id)
+
+            if order_id_int in self.orders:
+                order = self.orders[order_id_int]
+                # Check if order is already canceled to prevent double cancellation
+                if order.status == "CANCELED":
+                    return False, f"Order {order_id} is already canceled"
+                # Only cancel if order is active
+                if order.status == "ACTIVE":
+                    canceled_order = order.mark_canceled()
+                    self.orders[order_id_int] = canceled_order
+                    return True, canceled_order.to_dict()
+                else:
+                    return False, f"Order {order_id} cannot be canceled (status: {order.status})"
+            else:
+                return False, f"Order {order_id} not found"
+
+        except Exception as e:
+            return False, str(e)
 
     async def update_order(
         self, order_id: str, new_amount=None, new_price=None, symbol=None
@@ -186,6 +258,17 @@ class MockTradingService:
                 active_orders.append(order.to_dict())
 
         return active_orders
+
+    def get_orders(self, symbol=None) -> list[dict[str, Any]]:
+        """Sync get orders operation for compatibility."""
+        self._record_operation("get_orders", symbol=str(symbol) if symbol else None)
+
+        orders = []
+        for order in self.orders.values():
+            if symbol is None or order.symbol == str(symbol):
+                orders.append(order.to_dict())
+
+        return orders
 
     async def get_order_status(self, order_id: str, symbol=None) -> dict[str, Any]:
         """Mock get order status operation."""
@@ -609,3 +692,114 @@ def create_mock_performance_monitor(scenario: str = "normal") -> MockPerformance
     monitor = MockPerformanceMonitor()
     monitor.set_scenario(scenario)
     return monitor
+
+
+class MockMonitoredTradingService:
+    """Mock monitored trading service combining trading and monitoring."""
+
+    def __init__(
+        self, trading_service: MockTradingService, performance_monitor: MockPerformanceMonitor
+    ):
+        self.trading_service = trading_service
+        self.performance_monitor = performance_monitor
+        self._trading_service = trading_service  # For compatibility with tests
+
+    async def place_order(self, symbol, side, amount, price=None):
+        """Place order with monitoring."""
+        # Ensure monitoring is started
+        await self.ensure_monitoring_started()
+
+        # Use sync place_order from MockTradingService
+        success, result = self.trading_service.place_order_sync(symbol, side, amount, price)
+
+        # Track in performance monitor
+        self.performance_monitor.track_trading_operation("place_order", str(symbol), success)
+
+        return {"success": success, "result": result}
+
+    async def cancel_order(self, order_id, symbol=None):
+        """Cancel order with monitoring."""
+        success, result = self.trading_service.cancel_order_sync(order_id)
+
+        symbol_str = str(symbol) if symbol else "unknown"
+        self.performance_monitor.track_trading_operation("cancel_order", symbol_str, success)
+
+        return {"success": success, "result": result}
+
+    async def get_orders(self, symbol=None):
+        """Get orders with monitoring."""
+        result = self.trading_service.get_orders(symbol)
+
+        symbol_str = str(symbol) if symbol else "all"
+        self.performance_monitor.track_trading_operation("get_orders", symbol_str, True)
+
+        return result
+
+    async def cancel_all_orders(self, symbol=None):
+        """Cancel all orders with monitoring."""
+        orders = self.trading_service.get_orders(symbol)
+        results = []
+
+        for order in orders:
+            # order is a dict from get_orders
+            order_id = str(order["id"])
+            success, result = self.trading_service.cancel_order_sync(order_id)
+            results.append({"order_id": order_id, "success": success, "result": result})
+
+        symbol_str = str(symbol) if symbol else "all"
+        self.performance_monitor.track_trading_operation("cancel_all_orders", symbol_str, True)
+
+        return results
+
+    async def place_batch_orders(self, orders):
+        """Place batch orders with monitoring."""
+        from bitfinex_maker_kit.domain.amount import Amount
+        from bitfinex_maker_kit.domain.price import Price
+        from bitfinex_maker_kit.domain.symbol import Symbol
+
+        results = []
+        for order_spec in orders:
+            symbol = Symbol(order_spec["symbol"])
+            side = order_spec["side"]
+            amount = Amount(order_spec["amount"])
+            price = Price(order_spec["price"]) if "price" in order_spec else None
+
+            success, result = self.trading_service.place_order_sync(symbol, side, amount, price)
+            results.append({"success": success, "result": result})
+
+        self.performance_monitor.track_trading_operation(
+            "place_batch_orders", f"batch_{len(orders)}", True
+        )
+        return results
+
+    async def get_active_orders(self, symbol=None):
+        """Get active orders."""
+        return self.trading_service.get_orders(symbol)
+
+    def get_performance_metrics(self):
+        """Get performance metrics."""
+        return self.performance_monitor.get_current_metrics().to_dict()
+
+    def get_performance_summary(self):
+        """Get performance summary."""
+        return self.performance_monitor.get_performance_summary()
+
+    def get_profiling_report(self):
+        """Get profiling report."""
+        return {"operations": self.performance_monitor.recorded_operations}
+
+    async def ensure_monitoring_started(self):
+        """Ensure monitoring is started."""
+        if not self.performance_monitor.running:
+            self.performance_monitor.start_monitoring()
+
+    async def cleanup(self):
+        """Cleanup service."""
+        await self.performance_monitor.stop_monitoring()
+
+
+def create_mock_monitored_trading_service(scenario: str = "normal") -> MockMonitoredTradingService:
+    """Create mock monitored trading service."""
+    trading_service = create_mock_trading_service(scenario)
+    performance_monitor = create_mock_performance_monitor(scenario)
+    return MockMonitoredTradingService(trading_service, performance_monitor)

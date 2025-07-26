@@ -6,7 +6,6 @@ properties under various load conditions and data patterns.
 """
 
 import asyncio
-import contextlib
 import time
 
 import pytest
@@ -440,19 +439,9 @@ class CacheStateMachine(RuleBasedStateMachine):
         # Convert to sync for stateful testing
         import asyncio
 
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        try:
-            loop.run_until_complete(self.cache_service.set(self.namespace, key, value))
-            self.expected_state[f"{self.namespace}:{key}"] = value
-            return key
-        except Exception:
-            # If async operation fails, skip this rule
-            return None
+        asyncio.run(self.cache_service.set(self.namespace, key, value))
+        self.expected_state[f"{self.namespace}:{key}"] = value
+        return key
 
     @rule(key=keys)
     def get_value(self, key):
@@ -463,22 +452,12 @@ class CacheStateMachine(RuleBasedStateMachine):
         # Convert to sync for stateful testing
         import asyncio
 
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        retrieved = asyncio.run(self.cache_service.get(self.namespace, key))
+        expected_key = f"{self.namespace}:{key}"
 
-        try:
-            retrieved = loop.run_until_complete(self.cache_service.get(self.namespace, key))
-            expected_key = f"{self.namespace}:{key}"
-
-            if expected_key in self.expected_state:
-                expected = self.expected_state[expected_key]
-                assert retrieved == expected, f"Expected {expected}, got {retrieved} for key {key}"
-        except Exception:
-            # If async operation fails, skip this check
-            pass
+        if expected_key in self.expected_state:
+            expected = self.expected_state[expected_key]
+            assert retrieved == expected, f"Expected {expected}, got {retrieved} for key {key}"
 
     @rule(key=keys)
     def delete_value(self, key):
@@ -489,20 +468,10 @@ class CacheStateMachine(RuleBasedStateMachine):
         # Convert to sync for stateful testing
         import asyncio
 
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        try:
-            loop.run_until_complete(self.cache_service.delete(self.namespace, key))
-            expected_key = f"{self.namespace}:{key}"
-            if expected_key in self.expected_state:
-                del self.expected_state[expected_key]
-        except Exception:
-            # If async operation fails, skip this rule
-            pass
+        asyncio.run(self.cache_service.delete(self.namespace, key))
+        expected_key = f"{self.namespace}:{key}"
+        if expected_key in self.expected_state:
+            del self.expected_state[expected_key]
 
     @rule(key=keys, new_value=cache_values())
     def overwrite_value(self, key, new_value):
@@ -513,18 +482,8 @@ class CacheStateMachine(RuleBasedStateMachine):
         # Convert to sync for stateful testing
         import asyncio
 
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        try:
-            loop.run_until_complete(self.cache_service.set(self.namespace, key, new_value))
-            self.expected_state[f"{self.namespace}:{key}"] = new_value
-        except Exception:
-            # If async operation fails, skip this rule
-            pass
+        asyncio.run(self.cache_service.set(self.namespace, key, new_value))
+        self.expected_state[f"{self.namespace}:{key}"] = new_value
 
     @invariant()
     def cache_stats_consistency(self):
@@ -548,17 +507,10 @@ class CacheStateMachine(RuleBasedStateMachine):
         """Clean up after testing."""
         # Clean up synchronously for stateful testing
         import asyncio
+        import contextlib
 
-        try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.cache_service.cleanup())
-        except RuntimeError:
-            with contextlib.suppress(Exception):
-                # If no event loop, create one
-                asyncio.run(self.cache_service.cleanup())
-        except Exception:
-            # Ignore cleanup errors in teardown
-            pass
+        with contextlib.suppress(TimeoutError, OSError, ConnectionError):
+            asyncio.run(self.cache_service.cleanup())
 
 
 # Test the stateful machine
