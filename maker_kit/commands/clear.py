@@ -2,21 +2,20 @@
 Clear command - Clear all orders for a specific symbol.
 """
 
-from ..utilities.auth import create_client
+from ..utilities.order_fetcher import fetch_orders_by_symbol, get_order_ids
 from ..utilities.constants import DEFAULT_SYMBOL
+from ..utilities.console import print_success
+from ..utilities.client_factory import get_client
+from ..utilities.display_helpers import display_preparation_list
 
 
 def clear_command(symbol: str = DEFAULT_SYMBOL):
     """Clear all orders for a specific symbol"""
     print(f"Getting active orders for {symbol}...")
     
-    # Get orders directly using client instead of importing from list command
-    client = create_client()
-    try:
-        all_orders = client.get_orders()
-        orders = [order for order in all_orders if order.symbol == symbol]
-    except Exception as e:
-        print(f"❌ Failed to get orders: {e}")
+    # Fetch orders using centralized utility
+    orders = fetch_orders_by_symbol(symbol)
+    if orders is None:
         return
     
     if not orders:
@@ -25,20 +24,18 @@ def clear_command(symbol: str = DEFAULT_SYMBOL):
     
     print(f"Found {len(orders)} active orders for {symbol}")
     
-    # Extract order IDs for bulk cancellation
-    order_ids = [order.id for order in orders]
+    # Extract order IDs for bulk cancellation using utility
+    order_ids = get_order_ids(orders)
     
-    # Display orders being cancelled
-    for order in orders:
-        order_type = order.order_type
-        amount = order.amount
-        price = order.price if order.price else "MARKET"
-        print(f"Preparing to cancel order {order.id}: {order_type} {amount} @ {price}")
+    # Display orders being cancelled using helper
+    display_preparation_list(orders, "cancel")
     
     # Use cancel_order_multi for efficient bulk cancellation
     
     try:
+        client = get_client()
         result = client.cancel_order_multi(order_ids)
-        print(f"\n✅ Successfully submitted bulk cancellation request for {len(order_ids)} orders")
+        print_success(f"Successfully submitted bulk cancellation request for {len(order_ids)} orders")
     except Exception as e:
-        print(f"\n❌ Failed to cancel orders in bulk: {e}") 
+        from ..utilities.console import print_operation_error
+        print_operation_error("cancel orders in bulk", e) 

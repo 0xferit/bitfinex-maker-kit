@@ -7,18 +7,26 @@ import signal
 import sys
 from typing import Optional
 from ..bitfinex_client import Order, Notification
-from ..utilities.auth import create_client
 from ..utilities.market_data import validate_center_price, resolve_center_price
-from ..utilities.orders import submit_order
 from ..utilities.constants import DEFAULT_SYMBOL, DEFAULT_LEVELS, DEFAULT_SPREAD_PCT, DEFAULT_ORDER_SIZE
+from ..services.container import ServiceContainer
+from ..config.trading_config import TradingConfig
 
 
 class AutoMarketMaker:
-    """Auto market maker using the official Bitfinex library"""
+    """
+    Orchestrates automated market making using focused components.
+    
+    This class now serves as a thin orchestration layer that coordinates
+    the various focused components for order management, UI, WebSocket handling,
+    and order generation.
+    """
     
     def __init__(self, symbol: str, center_price: float, levels: int, spread_pct: float, 
                  size: float, side_filter: Optional[str] = None, test_only: bool = False,
-                 ignore_validation: bool = False, yes: bool = False):
+                 ignore_validation: bool = False, yes: bool = False, 
+                 container: Optional[ServiceContainer] = None):
+        """Initialize orchestrator with dependency injection."""
         self.symbol = symbol
         self.initial_center = center_price
         self.current_center = center_price
@@ -29,15 +37,47 @@ class AutoMarketMaker:
         self.test_only = test_only
         self.ignore_validation = ignore_validation
         self.yes = yes
-        self.active_orders = {}  # order_id -> order_info
         self.running = False
-        self.replenish_task = None  # For the periodic replenishment task
+        self.replenish_task = None
         
-        # Create client
-        self.client = create_client()
+        # Use provided container or create new one
+        self.container = container if container else ServiceContainer()
+        
+        # Get trading service through DI
+        self.trading_service = self.container.create_trading_service()
+        self.client = self.trading_service.get_client()
+        
+        # Initialize focused components using DI
+        self.order_manager = self.container.create_order_manager(symbol, levels, spread_pct, size, side_filter)
+        self.ui = self.container.create_market_maker_ui(symbol, center_price, levels, spread_pct, size, side_filter)
+        self.websocket_handler = self.container.create_websocket_handler(self.order_manager)
+        self.order_generator = self.container.create_order_generator(levels, spread_pct, size, side_filter)
+        
+        # Set up component callbacks
+        self._setup_component_callbacks()
+    
+    def _setup_component_callbacks(self):
+        """Set up callbacks between components."""
+        # Set UI callback for order manager and WebSocket handler
+        self.websocket_handler.set_ui_callback(self.ui.log_message)
+        
+        # Set order fill callback for center price adjustment
+        self.websocket_handler.set_order_fill_callback(self._handle_order_fill)
+        
+        # Set order cancellation callback
+        self.websocket_handler.set_order_cancelled_callback(self._handle_order_cancelled)
+    
+    async def _handle_order_fill(self, fill_price: float, fill_type: str):
+        """Handle order fills by adjusting center price."""
+        await self.adjust_orders(fill_price)
+    
+    def _handle_order_cancelled(self, order_id, order_info):
+        """Handle order cancellation events."""
+        # Order is already removed from tracking by the WebSocket handler
+        pass
         
     def validate_initial_price(self):
-        """Validate initial center price"""
+        """Validate initial center price using existing validation."""
         is_valid, range_info = validate_center_price(self.symbol, self.initial_center, self.ignore_validation)
         if not is_valid:
             if range_info:
@@ -47,237 +87,17 @@ class AutoMarketMaker:
                 error_msg = f"Invalid center price: ${self.initial_center:.6f} (unable to get current market data)"
             raise ValueError(error_msg)
     
-    def generate_orders(self, center_price: float):
-        """Generate order list for current center price"""
-        orders = []
-        
-        for i in range(1, self.levels + 1):
-            if self.side_filter != "sell":
-                buy_price = center_price * (1 - (self.spread_pct * i / 100))
-                orders.append(("buy", self.size, buy_price))
-            
-            if self.side_filter != "buy":
-                sell_price = center_price * (1 + (self.spread_pct * i / 100))
-                orders.append(("sell", self.size, sell_price))
-        
-        return orders
-    
     def place_initial_orders(self):
-        """Place initial set of orders"""
-        print(f"\n🚀 Placing initial orders around center price ${self.current_center:.6f}")
-        
-        orders_to_place = self.generate_orders(self.current_center)
-        orders_to_place.sort(key=lambda x: x[2])  # Sort by price
-        
-        for side, amount, price in orders_to_place:
-            try:
-                # Use centralized order submission function
-                response = submit_order(self.symbol, side, amount, price)
-                
-                order_status = "POST-ONLY"
-                print(f"✅ {side.upper()} {order_status} order placed: {amount} @ ${price:.6f}")
-                
-                # Extract order ID from response - the response format varies
-                order_id = None
-                try:
-                    # Try different response formats from Bitfinex API
-                    if hasattr(response, 'data') and response.data:
-                        # Response is a Notification with data attribute
-                        order_data = response.data
-                        if isinstance(order_data, list) and len(order_data) > 0:
-                            # Data is a list, get the first order
-                            order_id = order_data[0].id if hasattr(order_data[0], 'id') else order_data[0][0]
-                        elif hasattr(order_data, 'id'):
-                            # Data is a single order object
-                            order_id = order_data.id
-                    elif hasattr(response, 'notify_info') and response.notify_info:
-                        # Alternative response format
-                        if isinstance(response.notify_info, list) and len(response.notify_info) > 0:
-                            order_id = response.notify_info[0] if isinstance(response.notify_info[0], int) else None
-                    elif hasattr(response, 'id'):
-                        # Direct order response
-                        order_id = response.id
-                    elif isinstance(response, list) and len(response) > 0:
-                        # Response is a list
-                        if hasattr(response[0], 'id'):
-                            order_id = response[0].id
-                        elif isinstance(response[0], (int, str)):
-                            order_id = response[0]
-                    
-                    # Debug: Print response structure to understand format
-                    print(f"🔍 Debug - Response type: {type(response)}")
-                    if hasattr(response, '__dict__'):
-                        print(f"🔍 Debug - Response attributes: {list(response.__dict__.keys())}")
-                    
-                    if order_id:
-                        # Track the order
-                        self.active_orders[order_id] = {
-                            'side': side,
-                            'amount': abs(amount),
-                            'price': price,
-                            'id': order_id
-                        }
-                        print(f"📋 Tracking order ID: {order_id}")
-                    else:
-                        print(f"⚠️  Order placed but couldn't extract ID for tracking")
-                        print(f"🔍 Debug - Full response: {response}")
-                        # Still track with a placeholder ID based on price
-                        placeholder_id = f"{side}_{price:.6f}_{abs(amount)}"
-                        self.active_orders[placeholder_id] = {
-                            'side': side,
-                            'amount': abs(amount),
-                            'price': price,
-                            'id': placeholder_id
-                        }
-                        print(f"📋 Using placeholder ID: {placeholder_id}")
-                        
-                except Exception as id_error:
-                    print(f"⚠️  Order placed but ID extraction failed: {id_error}")
-                    print(f"🔍 Debug - Response during error: {response}")
-                    # Use placeholder ID
-                    placeholder_id = f"{side}_{price:.6f}_{abs(amount)}"
-                    self.active_orders[placeholder_id] = {
-                        'side': side,
-                        'amount': abs(amount),
-                        'price': price,
-                        'id': placeholder_id
-                    }
-                    print(f"📋 Using placeholder ID: {placeholder_id}")
-                
-            except Exception as e:
-                if "would have matched" in str(e).lower():
-                    print(f"⚠️  {side.upper()} POST-ONLY order @ ${price:.6f} cancelled (would have matched existing order)")
-                else:
-                    print(f"❌ Failed to place {side.upper()} order: {e}")
+        """Place initial set of orders using order manager."""
+        return self.order_manager.place_initial_orders(self.current_center, self.ui.log_message)
     
     def cancel_all_orders(self):
-        """Cancel all active orders"""
-        if not self.active_orders:
-            return
-        
-        print(f"🗑️  Cancelling {len(self.active_orders)} tracked orders...")
-        
-        # Extract order IDs for bulk cancellation (excluding placeholder IDs)
-        order_ids = []
-        placeholder_orders = []
-        
-        for order_id, order_info in self.active_orders.items():
-            if isinstance(order_id, str) and '_' in str(order_id):
-                # This looks like a placeholder ID
-                placeholder_orders.append((order_id, order_info))
-            else:
-                # This is a real order ID
-                order_ids.append(order_id)
-        
-        # Cancel real orders using bulk API
-        if order_ids:
-            try:
-                result = self.client.cancel_order_multi(order_ids)
-                print(f"✅ Successfully submitted bulk cancellation for {len(order_ids)} orders")
-            except Exception as e:
-                print(f"❌ Failed to cancel orders in bulk: {e}")
-        
-        # Handle placeholder orders (just remove from tracking)
-        if placeholder_orders:
-            print(f"🧹 Removing {len(placeholder_orders)} placeholder orders from tracking")
-        
-        # Clear all tracking
-        self.active_orders.clear()
-        print("🧹 Order tracking cleared")
+        """Cancel all active orders using order manager."""
+        self.order_manager.cancel_all_orders(self.ui.log_message)
     
     def check_and_replenish_orders(self):
-        """Check for cancelled orders and replenish them"""
-        if not self.active_orders:
-            return
-        
-        try:
-            # Get current active orders from exchange
-            all_orders = self.client.get_orders()
-            current_orders = [order for order in all_orders if order.symbol == self.symbol]
-            
-            # Create set of currently active order IDs on exchange
-            active_order_ids = {order.id for order in current_orders}
-            
-            # Find orders that we're tracking but are no longer active
-            missing_orders = []
-            for order_id, order_info in list(self.active_orders.items()):
-                if order_id not in active_order_ids:
-                    missing_orders.append((order_id, order_info))
-                    # Remove from our tracking
-                    self.active_orders.pop(order_id, None)
-            
-            if missing_orders:
-                print(f"\n🔄 Found {len(missing_orders)} cancelled orders - replenishing...")
-                
-                # Replenish each missing order
-                for order_id, order_info in missing_orders:
-                    side = order_info['side']
-                    amount = order_info['amount']
-                    price = order_info['price']
-                    
-                    print(f"   Replenishing {side.upper()} order: {amount} @ ${price:.6f}")
-                    
-                    try:
-                        # Use centralized order submission function
-                        response = submit_order(self.symbol, side, amount, price)
-                        
-                        # Extract order ID from response
-                        new_order_id = None
-                        try:
-                            # Try different response formats from Bitfinex API
-                            if hasattr(response, 'data') and response.data:
-                                # Response is a Notification with data attribute
-                                order_data = response.data
-                                if isinstance(order_data, list) and len(order_data) > 0:
-                                    # Data is a list, get the first order
-                                    new_order_id = order_data[0].id if hasattr(order_data[0], 'id') else order_data[0][0]
-                                elif hasattr(order_data, 'id'):
-                                    # Data is a single order object
-                                    new_order_id = order_data.id
-                            elif hasattr(response, 'notify_info') and response.notify_info:
-                                # Alternative response format
-                                if isinstance(response.notify_info, list) and len(response.notify_info) > 0:
-                                    new_order_id = response.notify_info[0] if isinstance(response.notify_info[0], int) else None
-                            elif hasattr(response, 'id'):
-                                # Direct order response
-                                new_order_id = response.id
-                            elif isinstance(response, list) and len(response) > 0:
-                                # Response is a list
-                                if hasattr(response[0], 'id'):
-                                    new_order_id = response[0].id
-                                elif isinstance(response[0], (int, str)):
-                                    new_order_id = response[0]
-                        except:
-                            pass
-                        
-                        if not new_order_id:
-                            new_order_id = f"{side}_{price:.6f}_{amount}_replenish"
-                        
-                        # Track the new order
-                        self.active_orders[new_order_id] = {
-                            'side': side,
-                            'amount': amount,
-                            'price': price,
-                            'id': new_order_id
-                        }
-                        order_status = "POST-ONLY"
-                        print(f"   ✅ Replenished: {side.upper()} {order_status} {amount} @ ${price:.6f} (ID: {new_order_id})")
-                        
-                    except Exception as e:
-                        if "would have matched" in str(e).lower():
-                            print(f"   ⚠️  {side.upper()} POST-ONLY replenishment @ ${price:.6f} cancelled (would have matched existing order)")
-                        else:
-                            print(f"   ❌ Failed to replenish {side.upper()} order: {e}")
-            else:
-                # Only show status occasionally to avoid spam
-                if not hasattr(self, '_check_count'):
-                    self._check_count = 0
-                self._check_count += 1
-                if self._check_count % 10 == 0:  # Every 10th check (5 minutes)
-                    print(f"\n✅ Order check #{self._check_count}: All {len(self.active_orders)} orders still active")
-            
-        except Exception as e:
-            print(f"\n❌ Error during order replenishment: {e}")
+        """Check for cancelled orders and replenish them using order manager."""
+        return self.order_manager.check_and_replenish_orders(self.ui.log_message)
     
     async def periodic_replenishment(self):
         """Periodic task to replenish cancelled orders every 30 seconds"""
@@ -295,164 +115,115 @@ class AutoMarketMaker:
                 print(f"\n❌ Error in periodic replenishment: {e}")
     
     async def adjust_orders(self, new_center: float):
-        """Cancel existing orders and place new ones around new center"""
-        print(f"\n🎯 Adjusting orders to new center price ${new_center:.6f}")
-        print(f"   Previous center: ${self.current_center:.6f}")
+        """Cancel existing orders and place new ones around new center using components."""
+        # Generate new orders for preview
+        new_orders = self.order_generator.generate_orders(new_center)
         
+        # Use UI to display adjustment preview
+        self.ui.display_order_adjustment_preview(new_center, new_orders)
+        
+        # Cancel existing orders
         self.cancel_all_orders()
         await asyncio.sleep(1)  # Brief pause to ensure cancellations process
         
+        # Update current center
         self.current_center = new_center
         
-        # Show preview of new orders
-        new_orders = self.generate_orders(self.current_center)
-        new_orders.sort(key=lambda x: x[2])  # Sort by price
-        
-        print(f"\n📋 New orders to place (sorted by price):")
-        print(f"{'Side':<4} {'Amount':<12} {'Price':<15} {'Distance from Center':<20}")
-        print("─" * 55)
-        
-        for side, amount, price in new_orders:
-            distance_pct = ((price - self.current_center) / self.current_center) * 100
-            distance_str = f"{distance_pct:+.3f}%"
-            print(f"{side.upper():<4} {amount:<12.6f} ${price:<14.6f} {distance_str:<20}")
-        
-        print()  # Add spacing before placement results
+        # Place new orders
         self.place_initial_orders()
     
     def setup_websocket_handlers(self):
-        """Setup WebSocket event handlers"""
-        
-        @self.client.wss.on("order_update")
-        def on_order_update(order: Order):
-            order_id = order.id
-            
-            if order_id in self.active_orders:
-                original_order = self.active_orders[order_id]
-                
-                if "EXECUTED" in order.order_status:
-                    fill_price = float(order.price)
-                    print(f"\n🎉 Our order FULLY EXECUTED! {original_order['side'].upper()} {original_order['amount']} @ ${fill_price:.6f}")
-                    self.active_orders.pop(order_id, None)
-                    # Schedule order adjustment
-                    asyncio.create_task(self.adjust_orders(fill_price))
-                    
-                elif "PARTIALLY FILLED" in order.order_status:
-                    remaining = abs(float(order.amount))
-                    filled_amount = original_order['amount'] - remaining
-                    fill_price = float(order.price)
-                    print(f"\n📊 Our order PARTIALLY FILLED! {original_order['side'].upper()} {filled_amount:.1f}/{original_order['amount']} @ ${fill_price:.6f}")
-                    print(f"   Remaining: {remaining:.1f}")
-                    
-                    if filled_amount >= original_order['amount'] * 0.5:  # 50% or more filled
-                        print(f"   🎯 Significant fill (≥50%) - adjusting center price")
-                        asyncio.create_task(self.adjust_orders(fill_price))
-                    else:
-                        print(f"   ⏳ Waiting for more fills before adjusting")
-                        
-                elif "CANCELED" in order.order_status:
-                    print(f"\n❌ Our order {order_id} was cancelled")
-                    self.active_orders.pop(order_id, None)
-        
-        @self.client.wss.on("order_new")
-        def on_order_new(order: Order):
-            print(f"\n🆕 New order created: {order.id}")
-        
-        @self.client.wss.on("authenticated")
-        async def on_authenticated(_):
-            print("✅ WebSocket authenticated - monitoring order fills")
-        
-        @self.client.wss.on("on-req-notification")
-        def on_notification(notification: Notification):
-            if notification.status == "ERROR":
-                print(f"\n❌ Order error: {notification.text}")
+        """Setup WebSocket event handlers using the WebSocket handler component."""
+        self.websocket_handler.setup_handlers()
     
     async def start(self):
-        """Start the auto market maker"""
-        print(f"\n🤖 Starting Auto Market Maker")
-        print(f"   Symbol: {self.symbol}")
-        print(f"   Initial Center: ${self.initial_center:.6f}")
-        print(f"   Levels: {self.levels}")
-        print(f"   Spread: {self.spread_pct:.3f}%")
-        print(f"   Size: {self.size}")
-        print(f"   Order Type: POST-ONLY LIMIT (Maker)")
-        if self.side_filter:
-            print(f"   Side Filter: {self.side_filter.upper()}-ONLY")
+        """Start the auto market maker using coordinated components."""
+        # Phase 1: Setup and validation
+        if not await self._prepare_startup():
+            return
+        
+        # Phase 2: Initial order placement
+        if not self._place_and_verify_initial_orders():
+            return
+            
+        # Phase 3: Test mode completion or continuous monitoring
+        if self.test_only:
+            self.ui.display_test_complete()
+            return
+        
+        # Phase 4: Start continuous monitoring
+        await self._start_continuous_monitoring()
+    
+    async def _prepare_startup(self) -> bool:
+        """
+        Prepare for startup by validating configuration and confirming with user.
+        
+        Returns:
+            True if startup should continue, False if cancelled
+        """
+        # Display startup info
+        self.ui.display_startup_info(self.test_only)
         
         # Validate initial price
         self.validate_initial_price()
         
-        # Generate and show preview of initial orders
-        initial_orders = self.generate_orders(self.initial_center)
-        initial_orders.sort(key=lambda x: x[2])  # Sort by price
+        # Generate initial orders for preview
+        initial_orders = self.order_generator.generate_orders(self.initial_center)
         
-        print(f"\n📋 Initial orders to place (sorted by price):")
-        print(f"{'Side':<4} {'Amount':<12} {'Price':<15} {'Distance from Center':<20}")
-        print("─" * 55)
+        # Confirm startup with user
+        if not self.ui.confirm_startup(initial_orders, self.test_only, self.yes):
+            self.ui.log_message("❌ Auto market maker cancelled")
+            return False
         
-        for side, amount, price in initial_orders:
-            distance_pct = ((price - self.initial_center) / self.initial_center) * 100
-            distance_str = f"{distance_pct:+.3f}%"
-            print(f"{side.upper():<4} {amount:<12.6f} ${price:<14.6f} {distance_str:<20}")
+        return True
+    
+    def _place_and_verify_initial_orders(self) -> bool:
+        """
+        Place initial orders and verify they were successful.
         
-        # Ask for confirmation
-        order_type = "orders"
-        if self.side_filter == "buy":
-            order_type = "BUY orders"
-        elif self.side_filter == "sell":
-            order_type = "SELL orders"
-        
-        print(f"\n⚠️  Auto-market-maker will:")
-        print(f"   • Place these {len(initial_orders)} {order_type} (POST-ONLY)")
-        print(f"   • Monitor for fills via WebSocket")
-        print(f"   • Automatically adjust center price when orders fill")
-        print(f"   • Replenish cancelled orders every 30 seconds")
-        print(f"   • Continue running until Ctrl+C")
-        
-        if not self.test_only and not self.yes:
-            response = input(f"\nDo you want to start auto-market-making? (y/N): ")
-            if response.lower() != 'y':
-                print("❌ Auto market maker cancelled")
-                return
-        
+        Returns:
+            True if orders were placed successfully, False otherwise
+        """
         # Place initial orders
         self.place_initial_orders()
         
-        if not self.active_orders:
-            print("❌ No orders were placed successfully. Exiting.")
-            return
+        # Check if orders were placed successfully
+        tracked_orders = self.order_manager.get_tracked_orders()
+        if not tracked_orders:
+            self.ui.log_message("❌ No orders were placed successfully. Exiting.")
+            return False
         
-        print(f"\n📊 Successfully placed {len(self.active_orders)} orders")
+        # Calculate initial order count for display
+        initial_orders = self.order_generator.generate_orders(self.initial_center)
+        self.ui.display_placement_complete(len(tracked_orders), len(initial_orders))
         
-        if self.test_only:
-            print("🧪 Test mode - exiting without WebSocket monitoring")
-            print("✅ Auto-market-make order placement test successful!")
-            return
-        
-        print(f"\n👂 Listening for order fills... (Press Ctrl+C to stop)")
-        
-        # Setup WebSocket handlers
+        return True
+    
+    async def _start_continuous_monitoring(self):
+        """Start continuous WebSocket monitoring and periodic tasks."""
+        # Setup WebSocket monitoring
+        self.ui.display_websocket_status()
         self.setup_websocket_handlers()
         
-        # Start WebSocket connection
+        # Start monitoring loop
         self.running = True
         try:
             await self.client.wss.start()
             
             # Start periodic replenishment task
             self.replenish_task = asyncio.create_task(self.periodic_replenishment())
-            print(f"🔄 Started periodic order replenishment (every 30 seconds)")
+            self.ui.display_replenishment_start()
             
             # Keep running until interrupted
             while self.running:
                 await asyncio.sleep(1)
                 
         except KeyboardInterrupt:
-            print("\n\n🛑 Shutting down auto market maker...")
+            self.ui.display_shutdown_start()
             await self.stop()
     
     async def stop(self):
-        """Stop the auto market maker and clean up"""
+        """Stop the auto market maker and clean up using components."""
         self.running = False
         
         # Cancel periodic replenishment task
@@ -462,22 +233,33 @@ class AutoMarketMaker:
                 await self.replenish_task
             except asyncio.CancelledError:
                 pass
-            print("🔄 Stopped periodic replenishment")
+            self.ui.log_message("🔄 Stopped periodic replenishment")
         
-        print("🗑️  Cancelling all remaining orders...")
+        # Cancel all remaining orders
+        self.ui.log_message("🗑️  Cancelling all remaining orders...")
         self.cancel_all_orders()
         
+        # Close WebSocket connection
         await self.client.wss.close()
-        print("✅ Auto market maker stopped successfully")
+        self.ui.display_shutdown_complete()
 
 
 async def auto_market_make(symbol: str, center_price: float, levels: int, spread_pct: float, 
                           size: float, side_filter: Optional[str] = None, test_only: bool = False,
-                          ignore_validation: bool = False, yes: bool = False):
-    """Start auto market maker with dynamic center adjustment"""
+                          ignore_validation: bool = False, yes: bool = False,
+                          container: Optional[ServiceContainer] = None):
+    """Start auto market maker with dynamic center adjustment using dependency injection"""
     
     try:
-        amm = AutoMarketMaker(symbol, center_price, levels, spread_pct, size, side_filter, test_only, ignore_validation, yes)
+        # Create or use provided container
+        if container is None:
+            container = ServiceContainer()
+            # Configure with appropriate settings
+            config = TradingConfig()
+            container.configure(config.to_dict())
+        
+        amm = AutoMarketMaker(symbol, center_price, levels, spread_pct, size, side_filter, 
+                             test_only, ignore_validation, yes, container)
     except ValueError as e:
         print(f"❌ Failed to start auto market maker: {e}")
         return

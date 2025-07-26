@@ -1,0 +1,51 @@
+# Simple Pre-commit Configuration for Maker-Kit
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Ruff - All-in-one linting and formatting (replaces black, isort, flake8, pyupgrade)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      # Linting with auto-fix
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi, jupyter]
+      
+      # Code formatting  
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        exclude: ^tests/
+        args: [--ignore-missing-imports, --show-error-codes]
+
+  # Security scanning
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: [-r, maker_kit/, --skip, B101]
+        exclude: ^tests/
+
+  # Essential file checks only
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+# Simple CI configuration
+ci:
+    autofix_commit_msg: '[pre-commit.ci] auto fixes'
+    autofix_prs: true
+    autoupdate_schedule: monthly

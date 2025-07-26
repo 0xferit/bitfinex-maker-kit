@@ -56,4 +56,79 @@ def confirm_action(prompt: str, default: bool = False) -> bool:
     if not response:
         return default
     
-    return response in ['y', 'yes'] 
+    return response in ['y', 'yes']
+
+
+# Standardized error message functions to eliminate duplication
+def print_operation_error(operation: str, error: Exception) -> None:
+    """
+    Print standardized error message for failed operations.
+    
+    Args:
+        operation: Description of the operation that failed (e.g., "get wallet data")
+        error: The exception that occurred
+    """
+    print_error(f"Failed to {operation}: {error}")
+
+
+def print_api_error(api_call: str, error: Exception) -> None:
+    """
+    Print standardized error message for API call failures.
+    
+    Args:
+        api_call: Name of the API call that failed (e.g., "get orders")
+        error: The exception that occurred
+    """
+    print_error(f"API call failed - {api_call}: {error}")
+
+
+def print_order_error(order_id: int, operation: str, error: Exception) -> None:
+    """
+    Print standardized error message for order-related operations.
+    
+    Args:
+        order_id: ID of the order that failed
+        operation: Operation that failed (e.g., "cancel", "update")
+        error: The exception that occurred
+    """
+    print_error(f"Failed to {operation} order {order_id}: {error}")
+
+
+def print_validation_error(field: str, value: str, reason: str) -> None:
+    """
+    Print standardized validation error message.
+    
+    Args:
+        field: Name of the field that failed validation
+        value: The invalid value
+        reason: Reason for validation failure
+    """
+    print_error(f"Invalid {field} '{value}': {reason}")
+
+
+def print_not_found_error(item_type: str, identifier: str) -> None:
+    """
+    Print standardized 'not found' error message.
+    
+    Args:
+        item_type: Type of item not found (e.g., "order", "symbol")
+        identifier: Identifier that wasn't found
+    """
+    print_error(f"{item_type.title()} {identifier} not found (may have already been filled or cancelled)")
+
+
+def print_bulk_operation_result(operation: str, success_count: int, total_count: int) -> None:
+    """
+    Print result of bulk operations.
+    
+    Args:
+        operation: Operation performed (e.g., "cancel", "update")
+        success_count: Number of successful operations
+        total_count: Total number of operations attempted
+    """
+    if success_count == total_count:
+        print_success(f"Successfully {operation}ed {success_count} items")
+    elif success_count > 0:
+        print_warning(f"Partially successful: {operation}ed {success_count}/{total_count} items")
+    else:
+        print_error(f"Failed to {operation} any of {total_count} items") 

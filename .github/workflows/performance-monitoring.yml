@@ -1,0 +1,378 @@
+name: Performance Monitoring
+
+on:
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_duration:
+        description: 'Test duration (short/medium/long)'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+        - short
+        - medium
+        - long
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  comprehensive-benchmarks:
+    name: Comprehensive Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run comprehensive benchmarks
+      run: |
+        pytest tests/benchmarks/ -v --tb=short --benchmark-json=benchmark-results.json
+      env:
+        BENCHMARK_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
+    
+    - name: Process benchmark results
+      run: |
+        python -c "
+        import json
+        import os
+        from datetime import datetime
+        
+        # Load benchmark results
+        with open('benchmark-results.json', 'r') as f:
+            results = json.load(f)
+        
+        # Add metadata
+        results['metadata'] = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'commit_sha': os.environ.get('GITHUB_SHA'),
+            'workflow_run_id': os.environ.get('GITHUB_RUN_ID'),
+            'test_duration': os.environ.get('BENCHMARK_DURATION', 'medium')
+        }
+        
+        # Save processed results
+        with open('processed-benchmark-results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+        "
+      env:
+        BENCHMARK_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: |
+          benchmark-results.json
+          processed-benchmark-results.json
+    
+    - name: Check performance regression
+      run: |
+        python scripts/check_performance_regression.py \
+          --current processed-benchmark-results.json \
+          --threshold 0.2 \
+          --output regression-report.json
+      continue-on-error: true
+    
+    - name: Upload regression report
+      uses: actions/upload-artifact@v3
+      with:
+        name: regression-report-${{ github.run_id }}
+        path: regression-report.json
+        if-no-files-found: ignore
+
+  load-testing:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    strategy:
+      matrix:
+        load_pattern: [constant, ramp_up, spike, burst]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run load tests - ${{ matrix.load_pattern }}
+      run: |
+        pytest tests/load/ -v --tb=short \
+          -k "test_${{ matrix.load_pattern }}" \
+          --json-report --json-report-file=load-test-results-${{ matrix.load_pattern }}.json
+      env:
+        LOAD_TEST_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
+    
+    - name: Upload load test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: load-test-results-${{ matrix.load_pattern }}-${{ github.run_id }}
+        path: load-test-results-${{ matrix.load_pattern }}.json
+
+  stress-testing:
+    name: Stress Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Run stress tests
+      run: |
+        pytest tests/load/test_stress_scenarios.py -v --tb=short \
+          --json-report --json-report-file=stress-test-results.json
+      env:
+        STRESS_TEST_DURATION: ${{ github.event.inputs.test_duration || 'medium' }}
+    
+    - name: Upload stress test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: stress-test-results-${{ github.run_id }}
+        path: stress-test-results.json
+
+  memory-profiling:
+    name: Memory Profiling
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+        pip install memory-profiler psutil
+    
+    - name: Run memory profiling
+      run: |
+        pytest tests/utilities/test_profiler.py -v --tb=short \
+          -k "memory" \
+          --json-report --json-report-file=memory-profile-results.json
+    
+    - name: Generate memory report
+      run: |
+        python scripts/generate_memory_report.py \
+          --input memory-profile-results.json \
+          --output memory-analysis-report.html
+      continue-on-error: true
+    
+    - name: Upload memory profiling results
+      uses: actions/upload-artifact@v3
+      with:
+        name: memory-profiling-results-${{ github.run_id }}
+        path: |
+          memory-profile-results.json
+          memory-analysis-report.html
+        if-no-files-found: ignore
+
+  performance-comparison:
+    name: Performance Comparison
+    runs-on: ubuntu-latest
+    needs: [comprehensive-benchmarks]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for comparison
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Download current benchmark results
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: current-results/
+    
+    - name: Compare with baseline
+      run: |
+        python scripts/compare_performance.py \
+          --current current-results/processed-benchmark-results.json \
+          --baseline performance-baselines/main-baseline.json \
+          --output performance-comparison-report.json
+      continue-on-error: true
+    
+    - name: Generate performance dashboard
+      run: |
+        python scripts/generate_performance_dashboard.py \
+          --comparison performance-comparison-report.json \
+          --output performance-dashboard.html
+      continue-on-error: true
+    
+    - name: Upload performance comparison
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-comparison-${{ github.run_id }}
+        path: |
+          performance-comparison-report.json
+          performance-dashboard.html
+        if-no-files-found: ignore
+
+  update-baselines:
+    name: Update Performance Baselines
+    runs-on: ubuntu-latest
+    needs: [comprehensive-benchmarks, performance-comparison]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Download benchmark results
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: new-results/
+    
+    - name: Update baseline files
+      run: |
+        mkdir -p performance-baselines
+        cp new-results/processed-benchmark-results.json performance-baselines/main-baseline.json
+        
+        # Update timestamp
+        python -c "
+        import json
+        from datetime import datetime
+        
+        with open('performance-baselines/main-baseline.json', 'r') as f:
+            data = json.load(f)
+        
+        data['baseline_metadata'] = {
+            'created_at': datetime.utcnow().isoformat(),
+            'commit_sha': '${{ github.sha }}',
+            'workflow_run_id': '${{ github.run_id }}'
+        }
+        
+        with open('performance-baselines/main-baseline.json', 'w') as f:
+            json.dump(data, f, indent=2)
+        "
+    
+    - name: Commit updated baselines
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add performance-baselines/
+        git commit -m "Update performance baselines - $(date -u)" || exit 0
+        git push
+
+  alert-on-regression:
+    name: Alert on Performance Regression
+    runs-on: ubuntu-latest
+    needs: [performance-comparison]
+    if: always() && needs.performance-comparison.result == 'success'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download comparison results
+      uses: actions/download-artifact@v3
+      with:
+        name: performance-comparison-${{ github.run_id }}
+        path: comparison-results/
+        continue-on-error: true
+    
+    - name: Check for regressions
+      id: check-regression
+      run: |
+        if [ -f "comparison-results/performance-comparison-report.json" ]; then
+          python -c "
+          import json
+          import sys
+          
+          try:
+              with open('comparison-results/performance-comparison-report.json', 'r') as f:
+                  data = json.load(f)
+              
+              regressions = data.get('regressions', [])
+              if regressions:
+                  print('REGRESSION_DETECTED=true')
+                  print('REGRESSION_COUNT=' + str(len(regressions)))
+                  print('regression detected')
+                  sys.exit(1)
+              else:
+                  print('REGRESSION_DETECTED=false')
+                  print('no regression detected')
+          except Exception as e:
+              print(f'Error checking regressions: {e}')
+              print('REGRESSION_DETECTED=unknown')
+          " >> $GITHUB_OUTPUT
+        else
+          echo "REGRESSION_DETECTED=unknown" >> $GITHUB_OUTPUT
+        fi
+      continue-on-error: true
+    
+    - name: Create issue on regression
+      if: steps.check-regression.outputs.REGRESSION_DETECTED == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const title = `Performance Regression Detected - ${new Date().toISOString().split('T')[0]}`;
+          const body = `
+          ## Performance Regression Alert
+          
+          A performance regression has been detected in the latest benchmark run.
+          
+          **Details:**
+          - Workflow Run: ${{ github.run_id }}
+          - Commit: ${{ github.sha }}
+          - Branch: ${{ github.ref }}
+          
+          **Artifacts:**
+          - [Benchmark Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Performance Comparison](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          Please investigate the performance regression and take appropriate action.
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['performance', 'regression', 'bug']
+          });

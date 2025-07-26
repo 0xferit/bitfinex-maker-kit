@@ -63,7 +63,12 @@ def get_credentials():
 
 
 def create_client():
-    """Create and return a Bitfinex wrapper client with POST_ONLY enforcement"""
+    """
+    Create and return a Bitfinex wrapper client with POST_ONLY enforcement.
+    
+    DEPRECATED: Use dependency injection through ServiceContainer instead.
+    This function is maintained for backward compatibility during transition.
+    """
     api_key, api_secret = get_credentials()
     return create_wrapper_client(api_key, api_secret)
 
@@ -88,7 +93,7 @@ def test_api_connection():
 
 
 def test_websocket_connection():
-    """Test WebSocket connection and authentication"""
+    """Test WebSocket connection and authentication using focused helper functions."""
     print("Testing WebSocket connection...")
     
     try:
@@ -97,137 +102,21 @@ def test_websocket_connection():
         return False
     
     try:
-        import asyncio
-        import threading
-        import time
         from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
         
-        # Use threading approach similar to the order update WebSocket implementation
+        # Use threading approach with focused helper functions
         result_container = {"success": False, "error": None, "authenticated": False, "wallets": []}
-        
-        def websocket_test_worker():
-            """Worker function to test WebSocket in separate thread"""
-            try:
-                # Create new event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                async def test_websocket():
-                    """Async function to test WebSocket connection"""
-                    
-                    wss = client.wss
-                    
-                    # Set up event handlers for testing
-                    @wss.on("authenticated")
-                    async def on_authenticated(data):
-                        print("✅ WebSocket authenticated successfully!")
-                        result_container["authenticated"] = True
-                        
-                        # Test WebSocket operations
-                        try:
-                            # 1. Subscribe to a ticker channel for testing
-                            await wss.subscribe("ticker", symbol="tBTCUSD")
-                            print("✅ WebSocket subscription test successful!")
-                            
-                                                         # 2. Test wallet retrieval via REST API (for comparison)
-                            print("   📊 Testing wallet retrieval via REST...")
-                            try:
-                                wallets = client.get_wallets()
-                                result_container["wallets"] = wallets
-                                print(f"✅ WebSocket + REST wallet test successful!")
-                                print(f"Found {len(wallets)} wallets (via REST after WebSocket auth)")
-                            except Exception as wallet_error:
-                                print(f"⚠️  Wallet retrieval failed: {wallet_error}")
-                                # Don't fail the test for wallet issues
-                            
-                        except Exception as sub_error:
-                            print(f"⚠️  WebSocket test operations failed: {sub_error}")
-                            # Don't fail the test for subscription issues
-                        
-                        # Mark test as complete and close connection
-                        result_container["success"] = True
-                        try:
-                            await wss.close()
-                            print("   🔌 WebSocket test completed - connection closed")
-                        except Exception:
-                            pass  # Ignore close errors
-                    
-                    @wss.on("on-req-notification")
-                    def on_notification(notification):
-                        # Handle any notifications during testing
-                        if hasattr(notification, 'status') and notification.status == "ERROR":
-                            result_container["error"] = f"WebSocket notification error: {notification.text}"
-                    
-                    try:
-                        # Start WebSocket connection
-                        print("   🔌 Establishing WebSocket connection...")
-                        await wss.start()
-                        
-                        # Wait for test completion with timeout
-                        max_wait_time = 18  # 18 seconds timeout for testing (extra time for wallet data)
-                        wait_time = 0
-                        
-                        while wait_time < max_wait_time:
-                            await asyncio.sleep(0.5)
-                            wait_time += 0.5
-                            
-                            # Check if we got an error
-                            if result_container["error"]:
-                                break
-                                
-                            # Check if test completed successfully
-                            if result_container["success"]:
-                                break
-                                
-                            # Check if we're stuck waiting for authentication
-                            if wait_time > 10 and not result_container["authenticated"]:
-                                result_container["error"] = "WebSocket authentication timed out"
-                                break
-                        
-                        # If we exit the loop without completing, it's a timeout
-                        if not result_container["error"] and not result_container["success"]:
-                            if not result_container["authenticated"]:
-                                result_container["error"] = "WebSocket authentication timed out"
-                            else:
-                                result_container["error"] = "WebSocket test timed out"
-                        
-                    except Exception as ws_error:
-                        result_container["error"] = f"WebSocket connection error: {ws_error}"
-                    finally:
-                        # Clean up - try to close WebSocket connection
-                        try:
-                            await wss.close()
-                        except Exception:
-                            pass  # Ignore close errors - connection might already be closed
-                
-                # Run the async test
-                loop.run_until_complete(test_websocket())
-                
-            except Exception as e:
-                result_container["error"] = f"WebSocket test worker error: {e}"
-            finally:
-                try:
-                    loop.close()
-                except Exception:
-                    pass
         
         # Run WebSocket test in thread with timeout
         with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(websocket_test_worker)
+            future = executor.submit(_websocket_test_worker, client, result_container)
             
             try:
                 # Wait for completion with timeout
-                future.result(timeout=25)  # 25 second total timeout (extra time for wallet data)
+                future.result(timeout=25)  # 25 second total timeout
                 
                 # Check results
-                if result_container["error"]:
-                    print(f"❌ WebSocket test failed: {result_container['error']}")
-                    return False
-                elif result_container["success"]:
-                    return True
-                else:
-                    print("❌ WebSocket test failed: Unknown error")
-                    return False
+                return _process_websocket_test_results(result_container)
                     
             except FutureTimeoutError:
                 print("❌ WebSocket test timed out (25s)")
@@ -235,6 +124,139 @@ def test_websocket_connection():
     
     except Exception as e:
         print(f"❌ WebSocket test failed: {e}")
+        return False
+
+
+def _websocket_test_worker(client, result_container):
+    """Worker function to test WebSocket in separate thread."""
+    import asyncio
+    
+    try:
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the async test
+        loop.run_until_complete(_test_websocket_async(client, result_container))
+        
+    except Exception as e:
+        result_container["error"] = f"WebSocket test worker error: {e}"
+    finally:
+        try:
+            loop.close()
+        except Exception:
+            pass
+
+
+async def _test_websocket_async(client, result_container):
+    """Async function to test WebSocket connection with focused handlers."""
+    wss = client.wss
+    
+    # Set up event handlers for testing
+    _setup_websocket_test_handlers(wss, client, result_container)
+    
+    try:
+        # Start WebSocket connection
+        print("   🔌 Establishing WebSocket connection...")
+        await wss.start()
+        
+        # Wait for test completion with timeout
+        await _wait_for_websocket_test_completion(result_container)
+        
+    except Exception as ws_error:
+        result_container["error"] = f"WebSocket connection error: {ws_error}"
+    finally:
+        # Clean up - try to close WebSocket connection
+        try:
+            await wss.close()
+        except Exception:
+            pass  # Ignore close errors
+
+
+def _setup_websocket_test_handlers(wss, client, result_container):
+    """Set up WebSocket event handlers for testing."""
+    @wss.on("authenticated")
+    async def on_authenticated(data):
+        print("✅ WebSocket authenticated successfully!")
+        result_container["authenticated"] = True
+        
+        # Test WebSocket operations
+        try:
+            # 1. Subscribe to a ticker channel for testing
+            await wss.subscribe("ticker", symbol="tBTCUSD")
+            print("✅ WebSocket subscription test successful!")
+            
+            # 2. Test wallet retrieval via REST API (for comparison)
+            print("   📊 Testing wallet retrieval via REST...")
+            try:
+                wallets = client.get_wallets()
+                result_container["wallets"] = wallets
+                print(f"✅ WebSocket + REST wallet test successful!")
+                print(f"Found {len(wallets)} wallets (via REST after WebSocket auth)")
+            except Exception as wallet_error:
+                print(f"⚠️  Wallet retrieval failed: {wallet_error}")
+                # Don't fail the test for wallet issues
+            
+        except Exception as sub_error:
+            print(f"⚠️  WebSocket test operations failed: {sub_error}")
+            # Don't fail the test for subscription issues
+        
+        # Mark test as complete and close connection
+        result_container["success"] = True
+        try:
+            await wss.close()
+            print("   🔌 WebSocket test completed - connection closed")
+        except Exception:
+            pass  # Ignore close errors
+    
+    @wss.on("on-req-notification")
+    def on_notification(notification):
+        # Handle any notifications during testing
+        if hasattr(notification, 'status') and notification.status == "ERROR":
+            result_container["error"] = f"WebSocket notification error: {notification.text}"
+
+
+async def _wait_for_websocket_test_completion(result_container):
+    """Wait for WebSocket test completion with proper timeout handling."""
+    import asyncio
+    
+    max_wait_time = 18  # 18 seconds timeout for testing
+    wait_time = 0
+    
+    while wait_time < max_wait_time:
+        await asyncio.sleep(0.5)
+        wait_time += 0.5
+        
+        # Check if we got an error
+        if result_container["error"]:
+            break
+            
+        # Check if test completed successfully
+        if result_container["success"]:
+            break
+            
+        # Check if we're stuck waiting for authentication
+        if wait_time > 10 and not result_container["authenticated"]:
+            result_container["error"] = "WebSocket authentication timed out"
+            break
+    
+    # If we exit the loop without completing, it's a timeout
+    if not result_container["error"] and not result_container["success"]:
+        if not result_container["authenticated"]:
+            result_container["error"] = "WebSocket authentication timed out"
+        else:
+            result_container["error"] = "WebSocket test timed out"
+
+
+def _process_websocket_test_results(result_container):
+    """Process WebSocket test results and return success status."""
+    if result_container["error"]:
+        print(f"❌ WebSocket test failed: {result_container['error']}")
+        return False
+    elif result_container["success"]:
+        return True
+    else:
+        print("❌ WebSocket test failed: Unknown error")
         return False
 
 

@@ -3,12 +3,16 @@ Put command - Place a single order.
 """
 
 from typing import Optional
+from decimal import Decimal
 from ..utilities.constants import ValidationError, OrderSubmissionError, DEFAULT_SYMBOL
-from ..utilities.orders import submit_order, _extract_order_id
 from ..utilities.formatters import format_price, format_amount
 from ..utilities.console import (
     print_success, print_error, print_warning, print_info, confirm_action
 )
+from ..services.container import get_container
+from ..domain.symbol import Symbol
+from ..domain.price import Price
+from ..domain.amount import Amount
 
 
 def put_command(side: str, amount: float, price: Optional[str] = None, 
@@ -55,11 +59,27 @@ def put_command(side: str, amount: float, price: Optional[str] = None,
     print(f"\n🚀 Placing order...")
     
     try:
-        # Use centralized order submission function
-        response = submit_order(symbol, side, amount, price_float)
+        # Create domain objects
+        symbol_obj = Symbol(symbol)
+        amount_obj = Amount(Decimal(str(amount)))
+        price_obj = Price(Decimal(str(price_float))) if price_float else None
         
-        # Try to extract order ID from response
-        order_id = _extract_order_id(response)
+        # Get trading service through container
+        container = get_container()
+        trading_service = container.create_trading_service()
+        
+        # Validate order parameters
+        is_valid, error_msg = trading_service.validate_order_parameters(
+            symbol_obj, side, amount_obj, price_obj)
+        
+        if not is_valid:
+            raise ValidationError(error_msg)
+        
+        # Place order using trading service
+        success, result = trading_service.place_order(symbol_obj, side, amount_obj, price_obj)
+        
+        if not success:
+            raise OrderSubmissionError(str(result))
         
         # Show success message
         order_status = "MARKET" if is_market_order else "POST-ONLY LIMIT"
@@ -67,8 +87,12 @@ def put_command(side: str, amount: float, price: Optional[str] = None,
         success_msg = f"{side.upper()} {order_status} order placed: {format_amount(amount)} {symbol}"
         if not is_market_order:
             success_msg += f" @ {format_price(price_float)}"
-        if order_id:
-            success_msg += f" (ID: {order_id})"
+        
+        # Try to extract order ID from result
+        if hasattr(result, 'id'):
+            success_msg += f" (ID: {result.id})"
+        elif isinstance(result, dict) and 'id' in result:
+            success_msg += f" (ID: {result['id']})"
         
         print_success(success_msg)
         

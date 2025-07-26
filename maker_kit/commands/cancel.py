@@ -3,24 +3,38 @@ Cancel command - Cancel orders by ID or by criteria.
 """
 
 from typing import Optional
-from ..utilities.auth import create_client
+from ..services.container import get_container
+from ..domain.order_id import OrderId
 
 
 def cancel_single_order(order_id: int):
-    """Cancel a single order by ID"""
+    """Cancel a single order by ID using dependency injection"""
     print(f"🗑️  Cancelling order {order_id}...")
     
-    success, result = _cancel_order(order_id)
-    
-    if success:
-        print(f"✅ Successfully cancelled order {order_id}")
-    else:
-        if "not found" in str(result).lower():
-            print(f"❌ Order {order_id} not found (may have already been filled or cancelled)")
+    try:
+        # Get trading service through container
+        container = get_container()
+        trading_service = container.create_trading_service()
+        
+        # Create order ID domain object
+        order_id_obj = OrderId(order_id)
+        
+        # Cancel using trading service
+        success, result = trading_service.cancel_order(order_id_obj)
+        
+        if success:
+            print(f"✅ Successfully cancelled order {order_id}")
         else:
-            print(f"❌ Failed to cancel order {order_id}: {result}")
-    
-    return success
+            if "not found" in str(result).lower():
+                print(f"❌ Order {order_id} not found (may have already been filled or cancelled)")
+            else:
+                print(f"❌ Failed to cancel order {order_id}: {result}")
+        
+        return success
+        
+    except Exception as e:
+        print(f"❌ Error cancelling order {order_id}: {e}")
+        return False
 
 
 def cancel_orders_by_criteria(size: Optional[float] = None, direction: Optional[str] = None, 
@@ -43,10 +57,11 @@ def cancel_orders_by_criteria(size: Optional[float] = None, direction: Optional[
     
     criteria_desc = " and ".join(criteria_parts) if criteria_parts else "all criteria"
     
-    # Get orders directly using client
-    client = create_client()
+    # Get orders using trading service
     try:
-        all_orders = client.get_orders()
+        container = get_container()
+        trading_service = container.create_trading_service()
+        all_orders = trading_service.get_orders()
         if symbol:
             print(f"Getting active orders for {symbol}...")
             orders = [order for order in all_orders if order.symbol == symbol]

@@ -2,32 +2,23 @@
 Order management operations for Bitfinex CLI.
 
 Core utilities for order submission and management.
+REFACTORED: Now supports dependency injection pattern.
 """
 
 from typing import Optional, Union
-from .auth import create_client
+from .client_factory import get_client
+from .response_parser import OrderResponseParser
 from .constants import OrderSide, ValidationError, OrderSubmissionError
 
 
 def _extract_order_id(response) -> Optional[str]:
-    """Extract order ID from API response."""
-    try:
-        if hasattr(response, 'data') and response.data:
-            order_data = response.data
-            if isinstance(order_data, list) and len(order_data) > 0:
-                return order_data[0].id if hasattr(order_data[0], 'id') else order_data[0][0]
-            elif hasattr(order_data, 'id'):
-                return order_data.id
-        elif hasattr(response, 'id'):
-            return response.id
-        elif isinstance(response, list) and len(response) > 0:
-            if hasattr(response[0], 'id'):
-                return response[0].id
-            elif isinstance(response[0], (int, str)):
-                return response[0]
-    except Exception:
-        pass
-    return None
+    """
+    Extract order ID from API response.
+    
+    DEPRECATED: Use OrderResponseParser.extract_order_id() directly.
+    This function is maintained for backward compatibility.
+    """
+    return OrderResponseParser.extract_order_id(response)
 
 
 def submit_order(symbol: str, side: Union[str, OrderSide], amount: float, 
@@ -35,8 +26,8 @@ def submit_order(symbol: str, side: Union[str, OrderSide], amount: float,
     """
     Centralized order submission function that ENFORCES POST_ONLY for all limit orders.
     
-    This function uses the BitfinexClientWrapper which enforces POST_ONLY
-    at the API boundary level, making it architecturally impossible to bypass.
+    REFACTORED: Now uses dependency injection for better testability and maintainability.
+    Falls back to legacy create_client() for backward compatibility.
     
     Args:
         symbol: Trading symbol (e.g., "tPNKUSD")
@@ -52,8 +43,8 @@ def submit_order(symbol: str, side: Union[str, OrderSide], amount: float,
         OrderSubmissionError: If order submission fails
     """
     try:
-        # Get wrapper client (enforces POST_ONLY at API boundary)
-        client = create_client()
+        # Get client through centralized factory
+        client = get_client()
         
         # Submit order through wrapper (POST_ONLY automatically enforced)
         return client.submit_order(symbol, side, amount, price)
@@ -67,8 +58,8 @@ def submit_order(symbol: str, side: Union[str, OrderSide], amount: float,
 
 
 def cancel_order(order_id: int):
-    """Cancel a specific order by ID"""
-    client = create_client()
+    """Cancel a specific order by ID - with dependency injection support."""
+    client = get_client()
     
     try:
         result = client.cancel_order(order_id)
@@ -83,8 +74,7 @@ def update_order(order_id: int, price: Optional[float] = None,
     """
     Update an existing order atomically using WebSocket (default) or cancel-and-recreate.
     
-    This function uses the BitfinexClientWrapper which defaults to safer WebSocket
-    atomic updates, with cancel-and-recreate as a fallback option.
+    REFACTORED: Now uses dependency injection for better testability.
     
     Args:
         order_id: ID of the order to update
@@ -101,8 +91,8 @@ def update_order(order_id: int, price: Optional[float] = None,
         OrderSubmissionError: If order update fails
     """
     try:
-        # Get wrapper client
-        client = create_client()
+        # Get client through centralized factory
+        client = get_client()
         
         # Update order through wrapper (WebSocket by default, cancel-recreate if requested)
         result = client.update_order(order_id, price, amount, delta, use_cancel_recreate)

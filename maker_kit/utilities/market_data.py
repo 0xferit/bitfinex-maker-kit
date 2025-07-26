@@ -1,13 +1,16 @@
 """
 Market data operations for Bitfinex CLI.
+
+REFACTORED: Now supports dependency injection pattern.
 """
 
-from .auth import create_client
+from .client_factory import get_client
+from .console import print_operation_error
 
 
 def get_ticker_data(symbol: str):
-    """Get ticker data for a symbol"""
-    client = create_client()
+    """Get ticker data for a symbol - with dependency injection support."""
+    client = get_client()
     
     try:
         ticker = client.get_ticker(symbol)
@@ -19,13 +22,13 @@ def get_ticker_data(symbol: str):
             'ask_size': float(ticker.ask_size)
         }
     except Exception as e:
-        print(f"❌ Failed to get ticker data: {e}")
+        print_operation_error("get ticker data", e)
         return None
 
 
 def get_last_trade(symbol: str):
-    """Get the most recent trade for a symbol"""
-    client = create_client()
+    """Get the most recent trade for a symbol - with dependency injection support."""
+    client = get_client()
     
     try:
         trades = client.get_trades(symbol, limit=1)
@@ -35,7 +38,7 @@ def get_last_trade(symbol: str):
             print("No recent trades found")
             return None
     except Exception as e:
-        print(f"❌ Failed to get trade data: {e}")
+        print_operation_error("get trade data", e)
         return None
 
 
@@ -84,7 +87,7 @@ def validate_center_price(symbol: str, center_price: float, ignore_validation: b
     """Validate that center price is within the current bid-ask spread"""
     ticker = get_ticker_data(symbol)
     if not ticker:
-        print("❌ Failed to get market data for validation")
+        print_operation_error("get market data for validation", Exception("API error"))
         return False, None
 
     bid = ticker['bid']
@@ -118,7 +121,7 @@ def resolve_center_price(symbol: str, center_input: str):
     if center_input.lower() == "mid-range":
         ticker = get_ticker_data(symbol)
         if not ticker:
-            print("❌ Failed to get market data for mid-range calculation")
+            print_operation_error("get market data for mid-range calculation", Exception("API error"))
             return None
         
         mid_price = (ticker['bid'] + ticker['ask']) / 2

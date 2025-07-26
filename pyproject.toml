@@ -1,37 +1,100 @@
 [build-system]
-requires = ["setuptools >= 77.0.3"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitfinex-maker-kit"
 version = "1.1.0"
-authors = [
-    {name = "Maker-Kit Developer"},
-]
-description = "A powerful command-line interface for automated trading and market making on Bitfinex"
+description = "Professional market making toolkit for Bitfinex cryptocurrency exchange"
 readme = "README.md"
-license = "GPL-3.0-only"
+license = {text = "MIT"}
+authors = [{name = "Bitfinex Maker-Kit Contributors"}]
+keywords = ["bitfinex", "cryptocurrency", "trading", "market-making", "automated-trading"]
 requires-python = ">=3.12"
-classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Financial and Insurance Industry",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Office/Business :: Financial :: Investment",
-]
 dependencies = [
     "bitfinex-api-py>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "asyncio>=3.4.3",
+    "aiohttp>=3.8.0",
+    "click>=8.0.0"
 ]
 
-[project.urls]
-"Homepage" = "https://github.com/your-username/maker-kit"
-"Bug Tracker" = "https://github.com/your-username/maker-kit/issues"
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.0",      # All-in-one linter and formatter
+    "mypy>=1.5.0",      # Type checking
+    "pytest>=7.4.0",    # Testing framework
+    "pytest-cov>=4.1.0", # Coverage reporting
+    "bandit>=1.7.5"     # Security scanning
+]
 
 [project.scripts]
 maker-kit = "maker_kit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["maker_kit*"] 
+include = ["maker_kit*"]
+exclude = ["tests*"]
+
+# Ruff - All-in-one linter and formatter (replaces black, isort, flake8, pyupgrade)
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes  
+    "I",         # isort
+    "B",         # flake8-bugbear
+    "C4",        # flake8-comprehensions
+    "UP",        # pyupgrade
+    "SIM",       # flake8-simplify
+    "RUF"        # Ruff-specific rules
+]
+ignore = [
+    "E501",      # line too long (handled by formatter)
+    "T201"       # Allow print statements (CLI tool)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# MyPy - Type checking
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+warn_unused_configs = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = ["bitfinex.*"]
+ignore_missing_imports = true
+
+# Coverage - Test coverage reporting
+[tool.coverage.run]
+source = ["maker_kit"]
+omit = ["*/tests/*", "*/__init__.py"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_empty = true
+
+# Pytest - Testing configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--cov=maker_kit",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--strict-markers",
+    "--tb=short"
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow tests"
+]

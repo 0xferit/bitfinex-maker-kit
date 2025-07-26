@@ -1,13 +1,16 @@
 """
 Wallet command - Show wallet balances.
+
+REFACTORED: Now supports dependency injection pattern.
 """
 
-from ..utilities.auth import create_client
+from ..utilities.client_factory import get_client
+from ..utilities.console import print_operation_error
 
 
 def wallet_command():
-    """Get and display wallet balances"""
-    client = create_client()
+    """Get and display wallet balances - with dependency injection support."""
+    client = get_client()
     
     try:
         wallets = client.get_wallets()
@@ -30,5 +33,5 @@ def wallet_command():
         print("─" * 60)
         return wallets
     except Exception as e:
-        print(f"❌ Failed to get wallet data: {e}")
+        print_operation_error("get wallet data", e)
         return [] 

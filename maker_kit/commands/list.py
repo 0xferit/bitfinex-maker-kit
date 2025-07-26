@@ -4,46 +4,40 @@ List command - List active orders with detailed analysis.
 
 from datetime import datetime
 from typing import Optional
-from ..utilities.auth import create_client
-from ..utilities.constants import DEFAULT_SYMBOL
+from ..utilities.order_fetcher import fetch_all_orders, fetch_orders_by_symbol
+from ..utilities.constants import DEFAULT_SYMBOL  
 from ..utilities.market_data import get_ticker_data
+from ..utilities.console import print_operation_error
+from ..utilities.display_helpers import display_orders_by_symbol, format_summary_stats, display_basic_summary
 
 
 def list_orders(symbol: Optional[str] = None, summary: bool = False):
     """List all active orders or orders for a specific symbol"""
     if symbol is None:
         print("Fetching all active orders...")
+        filtered_orders = fetch_all_orders()
+        header = "\n📋 All Active Orders:"
     else:
         print("Fetching active orders...")
+        filtered_orders = fetch_orders_by_symbol(symbol)
+        header = f"\n📋 Active Orders for {symbol}:"
     
-    client = create_client()
-    
-    try:
-        orders = client.get_orders()
-        
-        # Filter by symbol if specified
-        if symbol:
-            filtered_orders = [order for order in orders if order.symbol == symbol]
-            print(f"\n📋 Active Orders for {symbol}:")
-        else:
-            filtered_orders = orders
-            print(f"\n📋 All Active Orders:")
-        
-        if not filtered_orders:
-            if symbol:
-                print(f"No active orders found for {symbol}")
-            else:
-                print("No active orders found")
-            return []
-        
-        if summary:
-            return _show_order_summary(filtered_orders)
-        
-        return _show_detailed_orders(filtered_orders)
-        
-    except Exception as e:
-        print(f"❌ Failed to get orders: {e}")
+    if filtered_orders is None:
         return []
+    
+    print(header)
+    
+    if not filtered_orders:
+        if symbol:
+            print(f"No active orders found for {symbol}")
+        else:
+            print("No active orders found")
+        return []
+    
+    if summary:
+        return _show_order_summary(filtered_orders)
+    
+    return _show_detailed_orders(filtered_orders)
 
 
 def list_command(symbol: str = DEFAULT_SYMBOL, summary: bool = False):
@@ -173,7 +167,7 @@ def _show_order_summary(filtered_orders):
             _display_order_book_visualization(symbol_orders, current_mid, lower_bound, upper_bound)
             
         else:
-            print(f"❌ Could not fetch market data for {order_symbol}")
+            print_operation_error(f"fetch market data for {order_symbol}", Exception("API error"))
         
         # Your spread analysis
         symbol_buy_orders = [o for o in filtered_orders if o.symbol == order_symbol and float(o.amount) > 0 and o.price]
@@ -308,53 +302,10 @@ def _display_order_book_visualization(orders, mid_price, lower_bound, upper_boun
 
 
 def _show_detailed_orders(filtered_orders):
-    """Display detailed order information"""
+    """Display detailed order information using display helpers"""
     print(f"Found {len(filtered_orders)} active order(s)")
-    print()
     
-    # Group orders by symbol for better display
-    orders_by_symbol = {}
-    for order in filtered_orders:
-        order_symbol = order.symbol
-        if order_symbol not in orders_by_symbol:
-            orders_by_symbol[order_symbol] = []
-        orders_by_symbol[order_symbol].append(order)
-    
-    # Display orders grouped by symbol
-    for order_symbol, orders in orders_by_symbol.items():
-        # Sort orders by price (lowest to highest), with market orders at the end
-        def sort_key(order):
-            if order.price is None:
-                return float('inf')  # Market orders go to the end
-            return float(order.price)
-        
-        sorted_orders = sorted(orders, key=sort_key)
-        
-        print(f"🔹 {order_symbol}:")
-        print("─" * 80)
-        print(f"{'ID':<12} {'Type':<15} {'Side':<4} {'Amount':<15} {'Price':<15} {'Created':<20}")
-        print("─" * 80)
-        
-        for order in sorted_orders:
-            order_id = order.id
-            amount = float(order.amount)
-            side = "BUY" if amount > 0 else "SELL"
-            amount_abs = abs(amount)
-            order_type = order.order_type
-            price = order.price if order.price else "MARKET"
-            created_timestamp = order.mts_create
-            
-            # Convert timestamp to readable date
-            if created_timestamp:
-                created_date = datetime.fromtimestamp(created_timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                created_date = "Unknown"
-            
-            # Format price
-            price_str = f"${float(price):.6f}" if price != "MARKET" else "MARKET"
-            
-            print(f"{order_id:<12} {order_type:<15} {side:<4} {amount_abs:<15.6f} {price_str:<15} {created_date:<20}")
-        
-        print()
+    # Use centralized display helper
+    display_orders_by_symbol(filtered_orders, show_created=True)
     
     return filtered_orders 

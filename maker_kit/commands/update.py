@@ -5,7 +5,7 @@ Update command - Update existing orders.
 from typing import Optional
 from ..utilities.constants import ValidationError, OrderSubmissionError
 from ..utilities.orders import update_order
-from ..utilities.auth import create_client
+from ..utilities.client_factory import get_client
 from ..utilities.formatters import format_price, format_amount
 from ..utilities.console import (
     print_success, print_error, print_warning, print_info, confirm_action
