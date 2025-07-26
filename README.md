@@ -4,11 +4,11 @@
 
 A professional, production-ready command-line interface for automated trading and market making on the Bitfinex cryptocurrency exchange. Engineered with safety-first architecture, comprehensive testing, and enterprise-grade performance optimizations.
 
-[![CI Status](https://github.com/bitfinex/maker-kit/workflows/CI/badge.svg)](https://github.com/bitfinex/maker-kit/actions)
-[![Coverage](https://codecov.io/gh/bitfinex/maker-kit/branch/main/graph/badge.svg)](https://codecov.io/gh/bitfinex/maker-kit)
-[![Security Rating](https://api.securityscorecards.dev/projects/github.com/bitfinex/maker-kit/badge)](https://api.securityscorecards.dev/projects/github.com/bitfinex/maker-kit)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/network/members)
+[![GitHub Issues](https://img.shields.io/github/issues/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/issues)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=flat-square&logo=python)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 ## 🎯 Key Features
 
