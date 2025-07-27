@@ -48,13 +48,18 @@ def cancel_orders_by_criteria(
 ) -> None:
     """Cancel orders matching specific criteria (size, direction, symbol, price thresholds)"""
 
+    from ..utilities.constants import DEFAULT_SYMBOL
+
+    # Resolve target symbol once for --all flag operations
+    target_symbol = symbol or DEFAULT_SYMBOL if all_orders else symbol
+
     # Handle --all flag case (cancel all orders for symbol)
     if all_orders:
-        from ..utilities.constants import DEFAULT_SYMBOL
-
-        target_symbol = symbol or DEFAULT_SYMBOL
         criteria_desc = f"all orders for {target_symbol}"
         print(f"Getting active orders for {target_symbol}...")
+        # Add confirmation message about which symbol is being targeted
+        if not symbol:
+            print(f"💡 No symbol specified, using default symbol: {target_symbol}")
     else:
         # Build description of what we're looking for
         criteria_parts = []
@@ -78,10 +83,7 @@ def cancel_orders_by_criteria(
         fetched_orders = trading_service.get_orders()
 
         if all_orders:
-            # For --all flag, filter by target symbol
-            from ..utilities.constants import DEFAULT_SYMBOL
-
-            target_symbol = symbol or DEFAULT_SYMBOL
+            # For --all flag, filter by target symbol (already resolved)
             orders = [order for order in fetched_orders if order.symbol == target_symbol]
         elif symbol:
             print(f"Getting active orders for {symbol}...")
@@ -95,7 +97,6 @@ def cancel_orders_by_criteria(
 
     if not orders:
         if all_orders:
-            target_symbol = symbol or DEFAULT_SYMBOL
             print(f"No active orders found for {target_symbol}")
         else:
             print("No active orders found")
@@ -147,24 +148,52 @@ def cancel_orders_by_criteria(
         print(f"No orders found matching criteria: {criteria_desc}")
         return
 
-    print(f"\n📋 Found {len(matching_orders)} orders matching criteria ({criteria_desc}):")
-    print("─" * 80)
-    print(f"{'ID':<12} {'Symbol':<10} {'Type':<15} {'Side':<4} {'Amount':<15} {'Price':<15}")
-    print("─" * 80)
+    # Use concise format for --all operations with many orders, detailed for criteria
+    if all_orders and len(matching_orders) > 5:
+        print(f"\n📋 Found {len(matching_orders)} orders for {target_symbol} (--all flag):")
 
-    for order in matching_orders:
-        order_id = order.id
-        order_symbol = order.symbol
-        order_type = order.order_type
-        amount = float(order.amount)
-        side = "BUY" if amount > 0 else "SELL"
-        amount_abs = abs(amount)
-        price = order.price if order.price else "MARKET"
-        price_str = f"${float(price):.6f}" if price != "MARKET" else "MARKET"
+        # Show summary statistics
+        buy_orders = [o for o in matching_orders if float(o.amount) > 0]
+        sell_orders = [o for o in matching_orders if float(o.amount) < 0]
 
-        print(
-            f"{order_id:<12} {order_symbol:<10} {order_type:<15} {side:<4} {amount_abs:<15.6f} {price_str:<15}"
-        )
+        print(f"   • {len(buy_orders)} BUY orders")
+        print(f"   • {len(sell_orders)} SELL orders")
+
+        # Show first few and last few orders
+        print("\n   Preview (first 3 orders):")
+        for order in matching_orders[:3]:
+            amount = float(order.amount)
+            side = "BUY" if amount > 0 else "SELL"
+            price_str = f"${float(order.price):.6f}" if order.price else "MARKET"
+            print(f"   {order.id}: {side} {abs(amount):.6f} @ {price_str}")
+
+        if len(matching_orders) > 6:
+            print("   ...")
+            for order in matching_orders[-3:]:
+                amount = float(order.amount)
+                side = "BUY" if amount > 0 else "SELL"
+                price_str = f"${float(order.price):.6f}" if order.price else "MARKET"
+                print(f"   {order.id}: {side} {abs(amount):.6f} @ {price_str}")
+    else:
+        # Detailed format for criteria-based cancellation or small --all operations
+        print(f"\n📋 Found {len(matching_orders)} orders matching criteria ({criteria_desc}):")
+        print("─" * 80)
+        print(f"{'ID':<12} {'Symbol':<10} {'Type':<15} {'Side':<4} {'Amount':<15} {'Price':<15}")
+        print("─" * 80)
+
+        for order in matching_orders:
+            order_id = order.id
+            order_symbol = order.symbol
+            order_type = order.order_type
+            amount = float(order.amount)
+            side = "BUY" if amount > 0 else "SELL"
+            amount_abs = abs(amount)
+            price = order.price if order.price else "MARKET"
+            price_str = f"${float(price):.6f}" if price != "MARKET" else "MARKET"
+
+            print(
+                f"{order_id:<12} {order_symbol:<10} {order_type:<15} {side:<4} {amount_abs:<15.6f} {price_str:<15}"
+            )
 
     if dry_run:
         print(f"\n🔍 DRY RUN - Found {len(matching_orders)} orders that would be cancelled")
@@ -234,7 +263,7 @@ def cancel_command(
         from ..utilities.console import print_error
 
         print_error(
-            "Must provide either order_id, --all, or criteria (--size, --direction, --symbol, --price-below, --price-above)"
+            "Must provide either an order_id, the --all flag, or specific criteria (--size, --direction, --symbol, --price-below, --price-above)"
         )
         print("Use 'maker-kit cancel --help' for usage information")
         return None
