@@ -7,11 +7,29 @@ market taking and ensure predictable execution. All orders are maker orders only
 NEVER BYPASSES POST_ONLY FLAG - This is a fundamental safety mechanism.
 """
 
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 from bfxapi import WSS_HOST, Client  # type: ignore
 
 from ..utilities.constants import POST_ONLY_FLAG, OrderSide, OrderSubmissionError, OrderType
+
+
+def api_error_handler(operation: str) -> Callable:
+    """Decorator to handle API errors consistently across all methods."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                raise OrderSubmissionError(f"Failed to {operation}: {e}") from e
+
+        return wrapper
+
+    return decorator
 
 
 class BitfinexAPIClient:
@@ -78,55 +96,46 @@ class BitfinexAPIClient:
                 f"Failed to submit {normalized_side.value} order: {e}"
             ) from e
 
+    @api_error_handler("get orders")
     def get_orders(self) -> list[Any]:
         """Get all active orders."""
-        try:
-            result = self.client.rest.auth.get_orders()
-            # Ensure we always return a list, even if API returns None or other types
-            if result is None:
-                return []
-            elif isinstance(result, list):
-                return result
-            else:
-                # If result is not a list but not None, wrap it in a list
-                return [result]
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to get orders: {e}") from e
+        result = self.client.rest.auth.get_orders()
+        # Ensure we always return a list, even if API returns None or other types
+        if result is None:
+            return []
+        elif isinstance(result, list):
+            return result
+        else:
+            # If result is not a list but not None, wrap it in a list
+            return [result]
 
+    @api_error_handler("cancel order")
     def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
-        try:
-            return self.client.rest.auth.cancel_order(id=order_id)
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to cancel order {order_id}: {e}") from e
+        return self.client.rest.auth.cancel_order(id=order_id)
 
+    @api_error_handler("cancel multiple orders")
     def cancel_order_multi(self, order_ids: list[int]) -> Any:
         """Cancel multiple orders by IDs."""
         if not order_ids:
             raise ValueError("Order IDs list cannot be empty")
 
-        try:
-            return self.client.rest.auth.cancel_order_multi(id=order_ids)
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to cancel {len(order_ids)} orders: {e}") from e
+        return self.client.rest.auth.cancel_order_multi(id=order_ids)
 
+    @api_error_handler("get wallets")
     def get_wallets(self) -> Any:
         """Get wallet balances."""
-        try:
-            return self.client.rest.auth.get_wallets()
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to get wallets: {e}") from e
+        return self.client.rest.auth.get_wallets()
 
+    @api_error_handler("get ticker")
     def get_ticker(self, symbol: str) -> Any:
         """Get ticker data for symbol."""
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
 
-        try:
-            return self.client.rest.public.get_t_ticker(symbol)
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to get ticker for {symbol}: {e}") from e
+        return self.client.rest.public.get_t_ticker(symbol)
 
+    @api_error_handler("get trades")
     def get_trades(self, symbol: str, limit: int = 1) -> Any:
         """Get recent trades for symbol."""
         if not symbol or not symbol.strip():
@@ -135,10 +144,7 @@ class BitfinexAPIClient:
         if limit <= 0:
             raise ValueError("Limit must be positive")
 
-        try:
-            return self.client.rest.public.get_t_trades(symbol, limit=limit)
-        except Exception as e:
-            raise OrderSubmissionError(f"Failed to get trades for {symbol}: {e}") from e
+        return self.client.rest.public.get_t_trades(symbol, limit=limit)
 
     @property
     def wss(self) -> Any:

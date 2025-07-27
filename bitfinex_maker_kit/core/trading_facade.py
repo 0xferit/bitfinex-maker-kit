@@ -6,7 +6,7 @@ components to provide a unified trading interface while maintaining
 separation of concerns.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from ..utilities.constants import OrderSide, OrderSubmissionError
 from .api_client import BitfinexAPIClient, create_api_client
@@ -39,7 +39,7 @@ class TradingFacade:
 
     def get_orders(self) -> list[Any]:
         """Get all active orders."""
-        return self.api_client.get_orders()
+        return cast(list[Any], self.api_client.get_orders())
 
     def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
