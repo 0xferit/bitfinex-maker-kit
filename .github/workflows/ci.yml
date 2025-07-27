@@ -268,16 +268,15 @@ jobs:
     
     - name: Run load tests (short duration for CI)
       run: |
+        # Strip newlines from API credentials to prevent header value errors
+        export BFX_API_KEY=$(echo "${{ secrets.BFX_API_KEY || 'test_api_key' }}" | tr -d '\n\r')
+        export BFX_API_SECRET=$(echo "${{ secrets.BFX_API_SECRET || 'test_api_secret' }}" | tr -d '\n\r')
+        export BFX_API_PAPER_KEY=$(echo "${{ secrets.BFX_API_PAPER_KEY || '' }}" | tr -d '\n\r')
+        export BFX_API_PAPER_SECRET=$(echo "${{ secrets.BFX_API_PAPER_SECRET || '' }}" | tr -d '\n\r')
         pytest tests/load/ -v --tb=short -k "not long_running"
       timeout-minutes: 15
       env:
         LOAD_TEST_DURATION: "short"
-        # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
-        # Paper trading credentials for realistic load tests
-        BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY || '' }}
-        BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET || '' }}
     
     - name: Upload load test results
       uses: actions/upload-artifact@v4
