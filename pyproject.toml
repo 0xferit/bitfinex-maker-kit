@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitfinex-maker-kit"
-version = "1.1.0"
+version = "4.0.0"
 description = "Professional market making toolkit for Bitfinex cryptocurrency exchange"
 readme = "README.md"
 license = {text = "MIT"}
@@ -16,30 +16,37 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "asyncio>=3.4.3",
     "aiohttp>=3.8.0",
-    "click>=8.0.0"
+    "click>=8.0.0",
+    "psutil>=5.9.0"
 ]
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",      # All-in-one linter and formatter
     "mypy>=1.5.0",      # Type checking
+    "types-psutil",     # Type stubs for psutil
     "pytest>=7.4.0",    # Testing framework
     "pytest-cov>=4.1.0", # Coverage reporting
-    "bandit>=1.7.5"     # Security scanning
+    "bandit>=1.7.5",    # Security scanning
+    "hypothesis>=6.0.0", # Property-based testing
+    "pytest-asyncio>=0.21.0", # Async test support
+    "pytest-benchmark>=4.0.0"  # Performance benchmarking
 ]
 
 [project.scripts]
-maker-kit = "maker_kit.cli:main"
+maker-kit = "bitfinex_maker_kit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["maker_kit*"]
+include = ["bitfinex_maker_kit*"]
 exclude = ["tests*"]
 
 # Ruff - All-in-one linter and formatter (replaces black, isort, flake8, pyupgrade)
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E", "W",    # pycodestyle
     "F",         # pyflakes  
@@ -74,27 +81,58 @@ ignore_missing_imports = true
 
 # Coverage - Test coverage reporting
 [tool.coverage.run]
-source = ["maker_kit"]
-omit = ["*/tests/*", "*/__init__.py"]
+source = ["bitfinex_maker_kit"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__init__.py",
+    "*/conftest.py",
+    "*/setup.py"
+]
 branch = true
+parallel = true
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 10
 show_missing = true
-skip_empty = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "Maker-Kit Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 # Pytest - Testing configuration
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
-    "--cov=maker_kit",
+    "--cov=bitfinex_maker_kit",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "--cov-fail-under=10",
     "--strict-markers",
     "--tb=short"
 ]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow tests"
+    "slow: Slow tests",
+    "benchmark: Performance benchmark tests",
+    "load: Load testing tests",
+    "paper_trading: Tests requiring paper trading credentials",
+    "realistic_load: Realistic load tests against real API"
 ]

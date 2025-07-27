@@ -80,19 +80,19 @@ lint:
 # Run type checking
 type-check:
 	@echo "🔎 Running type checks..."
-	mypy maker_kit/
+	mypy bitfinex_maker_kit/
 	@echo "✅ Type checking complete!"
 
 # Run security scanning
 security:
 	@echo "🔒 Running security scan..."
-	bandit -r maker_kit/ --skip B101 --quiet
+	bandit -r bitfinex_maker_kit/ --skip B101 --quiet
 	@echo "✅ Security scan complete!"
 
 # Run tests with coverage
 test:
 	@echo "🧪 Running tests..."
-	pytest --cov=maker_kit --cov-report=term-missing --cov-report=html
+	pytest --cov=bitfinex_maker_kit --cov-report=term-missing --cov-report=html
 	@echo "✅ Tests complete!"
 
 # Run all quality checks (main command)
