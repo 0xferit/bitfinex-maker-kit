@@ -10,7 +10,6 @@ from collections.abc import Callable
 
 from ..commands import (
     cancel_command,
-    clear_command,
     fill_spread_command,
     list_command,
     market_make_command,
@@ -34,7 +33,6 @@ class CommandRouter:
         self.command_map: dict[str, Callable] = {
             "test": self._route_test,
             "wallet": self._route_wallet,
-            "clear": self._route_clear,
             "cancel": self._route_cancel,
             "put": self._route_put,
             "update": self._route_update,
@@ -71,10 +69,6 @@ class CommandRouter:
         """Route wallet command."""
         wallet_command()
 
-    def _route_clear(self, args: argparse.Namespace) -> None:
-        """Route clear command."""
-        clear_command()
-
     def _route_cancel(self, args: argparse.Namespace) -> None:
         """Route cancel command."""
         cancel_command(
@@ -86,6 +80,7 @@ class CommandRouter:
             args.price_above,
             args.dry_run,
             args.yes,
+            args.all,
         )
 
     def _route_put(self, args: argparse.Namespace) -> None:

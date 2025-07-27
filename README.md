@@ -47,7 +47,7 @@ A professional, production-ready command-line interface for automated trading an
 ### Core Architecture Components
 
 #### 🎯 **Command Layer** (`commands/`)
-- **Individual Commands**: `test`, `wallet`, `list`, `cancel`, `put`, `market-make`, `fill-spread`, `clear`, `update`
+- **Individual Commands**: `test`, `wallet`, `list`, `cancel`, `put`, `market-make`, `fill-spread`, `update`
 - **Core Abstractions**: `core/` with base commands, executors, and result handling
 - **Extensible Design**: Plugin-style command architecture
 
@@ -170,6 +170,9 @@ maker-kit put --symbol tBTCUSD --amount 0.01 --price 50000.0 --side buy
 
 # Batch order cancellation
 maker-kit cancel --symbol tBTCUSD --side buy
+
+# Cancel all orders for a symbol
+maker-kit cancel --all --symbol tBTCUSD
 ```
 
 #### 🧩 **Strategies Layer** (`strategies/`, `update_strategies/`)
@@ -199,11 +202,10 @@ maker-kit cancel --symbol tBTCUSD --side buy
 | `test` | Test API connection | Service container validation, credential testing |
 | `wallet` | Show wallet balances | Real-time balance with caching and formatting |
 | `list` | List active orders | Advanced filtering, display helpers, pagination |
-| `cancel` | Cancel orders | Bulk operations, criteria matching, dry-run support |
+| `cancel` | Cancel orders | Bulk operations, criteria matching, dry-run support, --all flag |
 | `put` | Place single order | Domain validation, order builder pattern |
 | `market-make` | Create staircase orders | Strategy-based generation, symmetric placement |
 | `fill-spread` | Fill bid-ask gaps | Market data analysis, intelligent spacing |
-| `clear` | Clear all orders | Emergency operations, confirmation workflows |
 | `update` | Update existing orders | Multiple update strategies, WebSocket optimization |
 
 ## 🧪 Testing & Quality Assurance

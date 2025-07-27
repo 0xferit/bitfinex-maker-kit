@@ -34,8 +34,7 @@ bitfinex_maker_kit/
 ├── cli.py                   # Main command-line interface
 ├── bitfinex_client.py       # API wrapper with POST_ONLY enforcement
 ├── commands/                # Individual CLI command modules
-│   ├── cancel.py            # Cancel orders by ID or criteria
-│   ├── clear.py             # Clear all orders
+│   ├── cancel.py            # Cancel orders by ID or criteria (supports --all flag)
 │   ├── fill_spread.py       # Fill bid-ask gaps with equally spaced orders
 │   ├── list.py              # List active orders
 │   ├── market_make.py       # Create staircase market making orders
@@ -61,11 +60,10 @@ bitfinex_maker_kit/
 | `test` | Test API connection | Validates credentials and connectivity |
 | `wallet` | Show wallet balances | Displays available funds |
 | `list` | List active orders | Shows current open orders |
-| `cancel` | Cancel orders | Cancel by ID, symbol, or criteria |
+| `cancel` | Cancel orders | Cancel by ID, symbol, criteria, or --all for clearing |
 | `put` | Place single order | Manual order placement |
 | `market-make` | Create staircase orders | Symmetric bid/ask levels |
 | `fill-spread` | Fill bid-ask gaps | Equally spaced orders across spread |
-| `clear` | Clear all orders | Remove all open orders |
 | `update` | Update existing orders | Modify order parameters |
 
 ## Development Setup

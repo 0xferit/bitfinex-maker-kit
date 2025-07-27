@@ -46,15 +46,12 @@ class CLIArgumentParser:
         self._setup_market_making_commands()
 
     def _setup_basic_commands(self) -> None:
-        """Set up basic command parsers (test, wallet, list, clear)."""
+        """Set up basic command parsers (test, wallet, list)."""
         # Test subcommand
         self.subparsers.add_parser("test", help="Test REST API and WebSocket connections")
 
         # Wallet subcommand
         self.subparsers.add_parser("wallet", help="Show wallet balances")
-
-        # Clear subcommand
-        self.subparsers.add_parser("clear", help="Clear all orders on PNK-USD pair")
 
         # List subcommand
         parser_list = self.subparsers.add_parser("list", help="List active orders")
@@ -99,6 +96,9 @@ class CLIArgumentParser:
         )
         parser_cancel.add_argument(
             "-y", "--yes", action="store_true", help="Skip confirmation prompt"
+        )
+        parser_cancel.add_argument(
+            "--all", action="store_true", help="Cancel all orders for the specified symbol"
         )
 
         # Put subcommand
