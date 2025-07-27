@@ -70,9 +70,15 @@ class MockTradingService:
         return Mock()
 
     async def place_order(
-        self, symbol, side, amount, price=None, order_type: str = "EXCHANGE LIMIT", **kwargs
+        self, symbol, side, amount, price, order_type: str = "EXCHANGE LIMIT", **kwargs
     ) -> dict[str, Any]:
-        """Mock place order operation."""
+        """Mock place order operation - POST_ONLY limit orders only."""
+        # ARCHITECTURAL ENFORCEMENT: Price is REQUIRED (no market orders allowed)
+        if price is None:
+            raise ValueError(
+                "Market orders are not supported. This program only supports POST_ONLY limit orders for maker-only trading."
+            )
+
         # Validate inputs first
         try:
             # Check for domain object types and basic validation
@@ -117,20 +123,26 @@ class MockTradingService:
         return order.to_dict()
 
     def place_order_sync(
-        self, symbol, side, amount, price=None, order_type: str = "EXCHANGE LIMIT", **kwargs
+        self, symbol, side, amount, price, order_type: str = "EXCHANGE LIMIT", **kwargs
     ) -> tuple[bool, dict[str, Any]]:
-        """Sync version of place_order for compatibility."""
+        """Sync version of place_order for compatibility - POST_ONLY limit orders only."""
         try:
+            # ARCHITECTURAL ENFORCEMENT: Price is REQUIRED (no market orders allowed)
+            if price is None:
+                return (
+                    False,
+                    "Market orders are not supported. This program only supports POST_ONLY limit orders for maker-only trading.",
+                )
+
             # Validate inputs first
             symbol_str = str(symbol)
             amount_str = str(amount)
-            price_str = str(price) if price else "0.0"
+            price_str = str(price)
 
             # Basic validation
-            if price:
-                price_val = float(price_str)
-                if price_val <= 0:
-                    return False, f"Price must be positive, got {price_val}"
+            price_val = float(price_str)
+            if price_val <= 0:
+                return False, f"Price must be positive, got {price_val}"
 
             amount_val = float(amount_str)
             if amount_val == 0:
@@ -704,8 +716,8 @@ class MockMonitoredTradingService:
         self.performance_monitor = performance_monitor
         self._trading_service = trading_service  # For compatibility with tests
 
-    async def place_order(self, symbol, side, amount, price=None):
-        """Place order with monitoring."""
+    async def place_order(self, symbol, side, amount, price):
+        """Place order with monitoring - POST_ONLY limit orders only."""
         # Ensure monitoring is started
         await self.ensure_monitoring_started()
 
@@ -762,7 +774,18 @@ class MockMonitoredTradingService:
             symbol = Symbol(order_spec["symbol"])
             side = order_spec["side"]
             amount = Amount(order_spec["amount"])
-            price = Price(order_spec["price"]) if "price" in order_spec else None
+
+            # ARCHITECTURAL ENFORCEMENT: Price is REQUIRED for all orders (POST_ONLY limit orders only)
+            if "price" not in order_spec or order_spec["price"] is None:
+                results.append(
+                    {
+                        "success": False,
+                        "result": "Market orders are not supported. This program only supports POST_ONLY limit orders for maker-only trading.",
+                    }
+                )
+                continue
+
+            price = Price(order_spec["price"])
 
             success, result = self.trading_service.place_order_sync(symbol, side, amount, price)
             results.append({"success": success, "result": result})
