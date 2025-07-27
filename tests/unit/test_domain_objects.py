@@ -256,7 +256,7 @@ class TestAmount:
         # Test division by extremely large number (should fail)
         with pytest.raises(
             ValueError,
-            match="Division by extremely large number would result in effectively zero amount",
+            match="Division would result in effectively zero amount",
         ):
             amount1 / Decimal("1e20")
 
