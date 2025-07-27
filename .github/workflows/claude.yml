@@ -13,11 +13,14 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      github.repository == '0xferit/bitfinex-maker-kit' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
@@ -28,7 +31,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 2  # Allow some historical context
 
       - name: Run Claude Code
         id: claude
@@ -49,14 +52,18 @@ jobs:
           # Optional: Trigger when specific user is assigned to an issue
           # assignee_trigger: "claude-bot"
           
-          # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
+          # Allow Claude to run project-specific commands
+          allowed_tools: "Bash(make quality),Bash(make test),Bash(make setup),Bash(make install),Bash(pytest tests/unit/),Bash(ruff check .),Bash(mypy bitfinex_maker_kit/),Bash(bandit -r bitfinex_maker_kit/)"
           
-          # Optional: Add custom instructions for Claude to customize its behavior for your project
-          # custom_instructions: |
-          #   Follow our coding standards
-          #   Ensure all new code has tests
-          #   Use TypeScript for new files
+          # Custom instructions for bitfinex-maker-kit project
+          custom_instructions: |
+            This is a professional cryptocurrency trading toolkit with strict safety requirements:
+            - All limit orders MUST use POST_ONLY flag (enforced architecturally)
+            - Python 3.12+ required
+            - Follow existing code patterns and domain-driven design
+            - Ensure comprehensive test coverage (80%+ required)
+            - Use existing quality tools (ruff, mypy, bandit, pytest)
+            - Review CLAUDE.md for project-specific context
           
           # Optional: Custom environment variables for Claude
           # claude_env: |

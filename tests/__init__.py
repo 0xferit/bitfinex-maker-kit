@@ -6,13 +6,13 @@ fixtures, and utilities for trading system validation.
 """
 
 __all__ = [
-    'test_wrapper_architecture',  # API wrapper POST_ONLY enforcement
-    'test_post_only_enforcement',  # Legacy: Centralized function tests
-    'conftest',                   # Pytest configuration and fixtures
-    'fixtures',                   # Test data fixtures
-    'mocks',                      # Mock objects and utilities  
-    'integration',                # Integration test suite
-    'unit',                       # Unit test suite
-    'performance',                # Performance test suite
-    'load',                       # Load testing suite
-] 
+    "conftest",  # Pytest configuration and fixtures
+    "fixtures",  # Test data fixtures
+    "integration",  # Integration test suite
+    "load",  # Load testing suite
+    "mocks",  # Mock objects and utilities
+    "performance",  # Performance test suite
+    "test_post_only_enforcement",  # Legacy: Centralized function tests
+    "test_wrapper_architecture",  # API wrapper POST_ONLY enforcement
+    "unit",  # Unit test suite
+]

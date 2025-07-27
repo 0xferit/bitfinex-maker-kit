@@ -1,8 +1,8 @@
 # Bitfinex Maker-Kit
 
-> **Enterprise-Grade Market Making Platform for Bitfinex**
+> **Modular Market Making Platform for Bitfinex**
 
-A professional, production-ready command-line interface for automated trading and market making on the Bitfinex cryptocurrency exchange. Engineered with safety-first architecture, comprehensive testing, and enterprise-grade performance optimizations.
+A professional, production-ready command-line interface for automated trading and market making on the Bitfinex cryptocurrency exchange. Built with modern software architecture principles including dependency injection, domain-driven design, and comprehensive testing frameworks.
 
 [![GitHub Stars](https://img.shields.io/github/stars/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/network/members)
@@ -15,40 +15,59 @@ A professional, production-ready command-line interface for automated trading an
 ### 🛡️ Safety-First Architecture
 - **POST_ONLY Enforcement**: Architecturally impossible to place market orders
 - **Dry-Run Mode**: Test strategies without real trading
-- **Price Validation**: Multiple layers of order validation
+- **Multi-Layer Validation**: Domain objects, service layer, and API boundary validation
 - **Risk Management**: Built-in safeguards and confirmation prompts
 
-### ⚡ Enterprise Performance
-- **Advanced Caching**: 90%+ reduction in API calls with intelligent cache warming
-- **Request Batching**: 50%+ throughput improvement with automatic batching
-- **Real-Time Monitoring**: Performance dashboards and automated alerting
-- **Memory Optimization**: Intelligent memory management and leak detection
+### ⚡ Modern Architecture
+- **Dependency Injection**: Clean separation of concerns with container pattern
+- **Domain-Driven Design**: Type-safe domain objects (OrderId, Price, Amount, Symbol)
+- **Service-Oriented**: Modular services (trading, cache, market data, performance monitoring)
+- **Event-Driven**: WebSocket integration with async event handling
 
 ### 🧪 Comprehensive Testing
 - **Property-Based Testing**: 1000+ generated test cases using Hypothesis
-- **Load Testing**: Multiple traffic patterns and stress scenarios
-- **Performance Benchmarking**: Automated regression detection
+- **Realistic Load Testing**: Integration tests against Bitfinex Paper Trading API
+- **Performance Benchmarking**: Automated regression detection with real network conditions
 - **Security Scanning**: Continuous vulnerability assessment
 
 ### 🚀 Production Ready
-- **CI/CD Pipeline**: Automated quality gates and deployment validation
-- **Performance Monitoring**: Daily benchmarks with regression alerts
-- **Enterprise Logging**: Structured logging with performance metrics
-- **Docker Support**: Containerized deployment ready
+- **Modular Commands**: Extensible command system with core abstractions
+- **Performance Monitoring**: Real-time metrics and profiling tools
+- **Configuration Management**: Environment-aware configuration system
+- **Quality Tooling**: Streamlined workflow with Ruff, MyPy, Bandit, and pytest
 
-## 🏗️ Architecture Principles
+## 🏗️ Architecture Overview
 
-### Design Philosophy
-- **Safety First**: Architecturally enforced POST_ONLY orders (impossible to bypass)
-- **Single Exchange**: Bitfinex only (reduces complexity, increases reliability)
-- **Single Strategy**: Market making focused (not multi-strategy)
-- **Enterprise Grade**: Production-ready with comprehensive monitoring
+### Modern Software Design
+- **Safety First**: Architecturally enforced POST_ONLY orders with multiple validation layers
+- **Modular Design**: Extensible architecture supporting multiple strategies and update methods
+- **Domain-Driven**: Rich domain objects with business logic encapsulation
+- **Service-Oriented**: Clean dependency injection with focused service responsibilities
 
-### Core Components
-- **Domain Objects**: Type-safe value objects with validation
-- **Service Layer**: Dependency injection with async/await patterns
-- **Command Pattern**: Structured command execution with undo capabilities
-- **Performance Monitoring**: Real-time metrics and optimization tools
+### Core Architecture Components
+
+#### 🎯 **Command Layer** (`commands/`)
+- **Individual Commands**: `test`, `wallet`, `list`, `cancel`, `put`, `market-make`, `fill-spread`, `clear`, `update`
+- **Core Abstractions**: `core/` with base commands, executors, and result handling
+- **Extensible Design**: Plugin-style command architecture
+
+#### 🏛️ **Service Layer** (`services/`)
+- **Container**: Dependency injection system managing service lifecycle
+- **Trading Services**: Sync/async trading facades with monitoring
+- **Cache Service**: Intelligent caching with namespace isolation
+- **Performance Monitor**: Real-time metrics collection and analysis
+- **Market Data Service**: Real-time price feeds and historical data
+
+#### 🎨 **Domain Layer** (`domain/`)
+- **Value Objects**: `OrderId`, `Price`, `Amount`, `Symbol` with validation
+- **Business Logic**: Type-safe operations and domain rules
+- **Immutable Design**: Functional programming principles
+
+#### ⚙️ **Core Layer** (`core/`)
+- **API Client**: Clean Bitfinex API wrapper with POST_ONLY enforcement
+- **Trading Facade**: Unified interface coordinating focused components
+- **Order Management**: Sophisticated order lifecycle management
+- **Validation**: Multi-layer validation system
 
 ## 🛠️ Installation
 
@@ -135,7 +154,7 @@ maker-kit --help
 maker-kit market-make --symbol tBTCUSD --levels 5 --spread 1.0 --size 0.1
 
 # Start automated market making
-maker-kit auto-market-make --symbol tBTCUSD --duration 3600
+maker-kit market-make --symbol tBTCUSD --levels 5
 
 # Fill spread gaps
 maker-kit fill-spread --symbol tETHUSD --levels 10
@@ -153,47 +172,85 @@ maker-kit put --symbol tBTCUSD --amount 0.01 --price 50000.0 --side buy
 maker-kit cancel --symbol tBTCUSD --side buy
 ```
 
+#### 🧩 **Strategies Layer** (`strategies/`, `update_strategies/`)
+- **Order Generation**: Flexible order generation strategies
+- **Update Strategies**: Multiple approaches (WebSocket, cancel-recreate, batch)
+- **Strategy Factory**: Dynamic strategy selection based on market conditions
+
+#### 🌐 **WebSocket Layer** (`websocket/`)
+- **Connection Manager**: Robust WebSocket connection handling
+- **Event Handler**: Real-time order updates and market data
+- **Async Event Loop**: Non-blocking event processing
+
+#### 🖥️ **UI Layer** (`ui/`)
+- **Market Maker Console**: Interactive trading interface
+- **Performance Dashboard**: Real-time metrics visualization
+- **Profiler Integration**: Memory and performance monitoring
+
+#### ⚙️ **Configuration Layer** (`config/`)
+- **Environment Management**: Development, staging, production configs
+- **Trading Configuration**: Dynamic configuration with validation
+- **Feature Flags**: Environment-specific feature control
+
 ## 📋 Available Commands
 
-| Command | Description | Key Features |
-|---------|-------------|--------------|
-| `test` | Test API connection | Validates credentials and connectivity |
-| `wallet` | Show wallet balances | Real-time balance information |
-| `list` | List active orders | Filterable order display |
-| `cancel` | Cancel orders | Bulk cancellation support |
-| `put` | Place single order | Manual order placement |
-| `market-make` | Create staircase orders | Symmetric bid/ask levels |
-| `auto-market-make` | Automated market making | Dynamic price adjustment |
-| `fill-spread` | Fill bid-ask gaps | Equally spaced order placement |
-| `clear` | Clear all orders | Emergency order clearing |
-| `update` | Update existing orders | Order modification |
+| Command | Description | Architecture Features |
+|---------|-------------|----------------------|
+| `test` | Test API connection | Service container validation, credential testing |
+| `wallet` | Show wallet balances | Real-time balance with caching and formatting |
+| `list` | List active orders | Advanced filtering, display helpers, pagination |
+| `cancel` | Cancel orders | Bulk operations, criteria matching, dry-run support |
+| `put` | Place single order | Domain validation, order builder pattern |
+| `market-make` | Create staircase orders | Strategy-based generation, symmetric placement |
+| `fill-spread` | Fill bid-ask gaps | Market data analysis, intelligent spacing |
+| `clear` | Clear all orders | Emergency operations, confirmation workflows |
+| `update` | Update existing orders | Multiple update strategies, WebSocket optimization |
 
 ## 🧪 Testing & Quality Assurance
 
-### Test Categories
-- **Unit Tests**: Fast, isolated component testing
-- **Integration Tests**: Service interaction validation
-- **Property Tests**: Hypothesis-based edge case discovery
-- **Load Tests**: Performance under various traffic patterns
-- **Benchmark Tests**: Performance regression detection
+### Comprehensive Test Architecture
+
+#### **Test Categories**
+- **Unit Tests** (`tests/unit/`): Isolated component testing with mocks
+- **Integration Tests** (`tests/integration/`): Service interaction validation
+- **Property Tests** (`tests/property/`): Hypothesis-based fuzzing and edge cases
+- **Load Tests** (`tests/load/`): Stress testing and traffic pattern simulation
+- **Performance Tests** (`tests/performance/`): Benchmark suite with regression detection
+- **Benchmarks** (`tests/benchmarks/`): Comprehensive performance analysis
+
+#### **Test Infrastructure**
+- **Fixtures** (`tests/fixtures/`): Reusable test data (API responses, market data, trading scenarios)
+- **Mocks** (`tests/mocks/`): Service mocks (API, client, trading service, WebSocket)
+- **Utilities** (`tests/utilities/`): Test helpers and profiling tools
+
+#### **Specialized Testing**
+- **POST_ONLY Enforcement**: Architectural safety validation
+- **Python Version Compliance**: Version requirement testing
+- **Wrapper Architecture**: API boundary validation
 
 ### Running Tests
 ```bash
-# Run all tests
-pytest
+# Run all tests with coverage
+pytest --cov=bitfinex_maker_kit --cov-report=html
 
 # Run specific test categories
+pytest tests/unit/           # Unit tests
+pytest tests/integration/    # Integration tests  
+pytest tests/property/       # Property-based tests
+pytest tests/load/           # Load and stress tests
+pytest tests/performance/    # Performance benchmarks
+
+# Run with markers
 pytest -m unit          # Unit tests only
 pytest -m integration   # Integration tests
 pytest -m property      # Property-based tests
 pytest -m load          # Load tests
 pytest -m benchmark     # Performance benchmarks
 
-# Run with coverage
-pytest --cov=maker_kit --cov-report=html
-
-# Run performance benchmarks
-pytest tests/benchmarks/ --benchmark-json=results.json
+# Run specific architectural tests
+pytest tests/test_post_only_enforcement.py     # Safety validation
+pytest tests/test_wrapper_architecture.py      # Architecture validation
+pytest tests/test_python_version_requirement.py # Version compliance
 ```
 
 ### Code Quality - Simple Workflow
@@ -221,8 +278,8 @@ ruff check . --fix    # Lint with auto-fix
 ruff format .         # Format code
 
 # Type checking and security
-mypy maker_kit/       # Type checking
-bandit -r maker_kit/  # Security scan
+mypy bitfinex_maker_kit/       # Type checking
+bandit -r bitfinex_maker_kit/  # Security scan
 ```
 
 **Quick validation** (30 seconds):
@@ -230,23 +287,45 @@ bandit -r maker_kit/  # Security scan
 ./scripts/check.sh    # Fast pre-commit check
 ```
 
-## 📊 Performance Monitoring
+## 📊 Performance Monitoring & Observability
 
-### Real-Time Metrics
-- **API Response Times**: P50, P95, P99 percentiles
-- **Cache Hit Ratios**: Efficiency tracking
-- **Order Throughput**: Operations per second
-- **Memory Usage**: Leak detection and optimization
-- **Error Rates**: Success/failure tracking
+### Built-in Performance Infrastructure
 
-### Performance Dashboard
-Access the built-in performance dashboard:
+#### **Performance Monitor Service** (`services/performance_monitor.py`)
+- **Real-Time Metrics**: P50, P95, P99 percentiles for API operations
+- **Cache Analytics**: Hit ratios, miss patterns, namespace efficiency
+- **Memory Profiling**: Leak detection with heap snapshots
+- **Error Tracking**: Success/failure rates with categorization
+
+#### **Profiler Utilities** (`utilities/profiler.py`)
+- **Execution Profiling**: Function-level performance analysis
+- **Memory Monitoring**: Detailed memory usage tracking
+- **Bottleneck Detection**: Automated performance regression alerts
+- **Resource Utilization**: CPU, memory, and I/O monitoring
+
+#### **Performance Dashboard** (`utilities/performance_dashboard.py`)
+- **Real-Time Visualization**: Live metrics display
+- **Historical Analysis**: Performance trend tracking
+- **Alert System**: Automated threshold-based notifications
+- **Export Capabilities**: JSON, CSV data export
+
+#### **Market Data Caching** (`utilities/market_data_cache.py`)
+- **Intelligent Caching**: 90%+ API call reduction
+- **Cache Warming**: Proactive data prefetching  
+- **Namespace Isolation**: Multi-symbol cache management
+- **TTL Management**: Automatic cache invalidation
+
+### Using Performance Tools
 ```bash
-# Start performance monitoring
-maker-kit monitor --dashboard
+# Enable performance monitoring in commands
+maker-kit market-make --enable-monitoring
 
-# View performance metrics
-maker-kit metrics --export json
+# View performance metrics (via dashboard integration)
+# Dashboard accessible through market-make UI console
+
+# Load testing and benchmarks
+pytest tests/performance/ --benchmark-json=results.json
+pytest tests/load/ -v  # Stress testing
 ```
 
 ## 🔒 Security Features
@@ -339,19 +418,65 @@ tox
 4. Run quality checks: `tox`
 5. Submit pull request with detailed description
 
-## 📖 Documentation
+## 📖 Codebase Structure
 
-### Architecture Documentation
-- [System Architecture](docs/architecture.md)
-- [API Reference](docs/api.md)
-- [Performance Guide](docs/performance.md)
-- [Security Guide](docs/security.md)
+### Directory Organization
+```
+bitfinex_maker_kit/
+├── __init__.py              # Package entry point and exports
+├── cli.py                   # Main CLI interface using focused components
+├── bitfinex_client.py       # Legacy wrapper (delegating to core/)
+├── cli/                     # CLI-specific components
+│   ├── argument_parser.py   # Command-line argument parsing
+│   └── command_router.py    # Command routing logic
+├── commands/                # Individual command implementations
+│   ├── core/                # Command abstractions and patterns
+│   │   ├── base_command.py         # Base command interface
+│   │   ├── command_executor.py     # Command execution framework
+│   │   ├── command_result.py       # Result handling
+│   │   └── [specialized_commands]  # Command implementations
+│   └── [individual_commands].py    # Main CLI commands
+├── core/                    # Core business logic
+│   ├── api_client.py        # Clean Bitfinex API wrapper
+│   ├── trading_facade.py    # Unified trading interface
+│   ├── order_manager.py     # Order lifecycle management
+│   └── order_validator.py   # Multi-layer validation
+├── domain/                  # Domain objects and business rules
+│   ├── order_id.py          # Order identification value object
+│   ├── price.py             # Price value object with validation
+│   ├── amount.py            # Amount value object with validation
+│   └── symbol.py            # Trading pair symbol validation
+├── services/                # Service layer with dependency injection
+│   ├── container.py         # Dependency injection container
+│   ├── trading_service.py   # Core trading operations
+│   ├── cache_service.py     # Intelligent caching system
+│   └── performance_monitor.py # Real-time metrics collection
+├── strategies/              # Trading strategy implementations
+│   └── order_generator.py   # Flexible order generation
+├── update_strategies/       # Order update approaches
+│   ├── base.py              # Update strategy interface
+│   ├── websocket_strategy.py    # Real-time WebSocket updates
+│   └── cancel_recreate_strategy.py # Cancel-recreate fallback
+├── websocket/               # WebSocket integration
+│   ├── connection_manager.py    # Connection lifecycle
+│   └── event_handler.py     # Real-time event processing
+├── ui/                      # User interface components
+│   └── market_maker_console.py  # Interactive trading console
+├── config/                  # Configuration management
+│   ├── environment.py       # Environment-aware configuration
+│   └── trading_config.py    # Trading-specific settings
+└── utilities/               # Shared utilities and helpers
+    ├── [various_utilities].py   # Helper functions and utilities
+    ├── performance_dashboard.py # Performance visualization
+    └── profiler.py          # Performance profiling tools
+```
 
-### User Guides
-- [Getting Started](docs/getting-started.md)
-- [Market Making Strategies](docs/strategies.md)
-- [Configuration Reference](docs/configuration.md)
-- [Troubleshooting](docs/troubleshooting.md)
+### Key Design Patterns
+- **Dependency Injection**: Clean service boundaries with container pattern
+- **Command Pattern**: Extensible command system with undo capabilities  
+- **Strategy Pattern**: Pluggable algorithms for order generation and updates
+- **Facade Pattern**: Simplified interfaces over complex subsystems
+- **Domain-Driven Design**: Rich domain objects with business logic
 
 ## ⚠️ Risk Disclaimer
 

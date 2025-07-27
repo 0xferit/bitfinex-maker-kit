@@ -1,50 +1,63 @@
-# Simple Pre-commit Configuration for Maker-Kit
+# Pre-commit hooks configuration for Bitfinex Maker-Kit
+# Runs the same code quality checks as CI pipeline to prevent failing commits
 # Install: pre-commit install
 # Run manually: pre-commit run --all-files
 
 repos:
-  # Ruff - All-in-one linting and formatting (replaces black, isort, flake8, pyupgrade)
+  # Ruff - Fast Python linter and formatter (matches CI configuration)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.12.5
     hooks:
-      # Linting with auto-fix
+      # Linting check with auto-fix
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        types_or: [python, pyi, jupyter]
+        files: ^(bitfinex_maker_kit|tests)/.*\.py$
       
-      # Code formatting  
+      # Code formatting check  
       - id: ruff-format
-        types_or: [python, pyi, jupyter]
+        files: ^(bitfinex_maker_kit|tests)/.*\.py$
 
-  # Type checking
+  # MyPy - Static type checking (matches CI configuration)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v1.17.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests]
-        exclude: ^tests/
-        args: [--ignore-missing-imports, --show-error-codes]
+        files: ^bitfinex_maker_kit/.*\.py$
+        additional_dependencies: [types-psutil]
+        args: [--config-file=pyproject.toml, --ignore-missing-imports]
 
-  # Security scanning
-  - repo: https://github.com/pycqa/bandit
-    rev: 1.7.10
+  # Security scanning with Bandit (simplified for pre-commit)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
     hooks:
       - id: bandit
-        args: [-r, maker_kit/, --skip, B101]
-        exclude: ^tests/
+        args: [--skip, B101]
+        files: ^bitfinex_maker_kit/.*\.py$
 
-  # Essential file checks only
+  # Built-in hooks for basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        files: ^(bitfinex_maker_kit|tests)/.*\.(py|yaml|yml|md|toml)$
       - id: end-of-file-fixer
+        files: ^(bitfinex_maker_kit|tests)/.*\.(py|yaml|yml|md|toml)$
       - id: check-yaml
       - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
       - id: check-merge-conflict
+      - id: debug-statements
+        files: ^(bitfinex_maker_kit|tests)/.*\.py$
       - id: detect-private-key
 
-# Simple CI configuration
+# Configuration
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
+fail_fast: false  # Run all hooks even if one fails
+minimum_pre_commit_version: "3.0.0"
+
+# CI configuration for pre-commit.ci
 ci:
     autofix_commit_msg: '[pre-commit.ci] auto fixes'
     autofix_prs: true
