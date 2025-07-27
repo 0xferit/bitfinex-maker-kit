@@ -8,8 +8,9 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  BFX_API_KEY: ${{ secrets.BFX_API_KEY }}
-  BFX_API_SECRET: ${{ secrets.BFX_API_SECRET }}
+  # ALWAYS use paper trading credentials - NEVER real API keys
+  BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+  BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
 
 jobs:
   lint-and-format:
@@ -108,9 +109,9 @@ jobs:
       run: |
         pytest tests/integration/ -v --tb=short --maxfail=5
       env:
-        # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        # ALWAYS use paper trading credentials - NEVER real API keys
+        BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
 
   property-tests:
     name: Property-Based Tests
@@ -136,9 +137,9 @@ jobs:
         pytest tests/property/ -v --tb=short --hypothesis-show-statistics
       timeout-minutes: 10
       env:
-        # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        # ALWAYS use paper trading credentials - NEVER real API keys
+        BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
 
   performance-tests:
     name: Performance Tests
@@ -165,9 +166,9 @@ jobs:
         pytest tests/benchmarks/ -v --tb=short -m "benchmark"
       timeout-minutes: 5
       env:
-        # Use real API credentials from GitHub secrets, fallback to mock for forks
-        BFX_API_KEY: ${{ secrets.BFX_API_KEY || 'test_api_key' }}
-        BFX_API_SECRET: ${{ secrets.BFX_API_SECRET || 'test_api_secret' }}
+        # ALWAYS use paper trading credentials - NEVER real API keys
+        BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+        BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
@@ -268,11 +269,11 @@ jobs:
     
     - name: Run load tests (short duration for CI)
       run: |
-        # Strip newlines from API credentials to prevent header value errors
-        export BFX_API_KEY=$(echo "${{ secrets.BFX_API_KEY || 'test_api_key' }}" | tr -d '\n\r')
-        export BFX_API_SECRET=$(echo "${{ secrets.BFX_API_SECRET || 'test_api_secret' }}" | tr -d '\n\r')
-        export BFX_API_PAPER_KEY=$(echo "${{ secrets.BFX_API_PAPER_KEY || '' }}" | tr -d '\n\r')
-        export BFX_API_PAPER_SECRET=$(echo "${{ secrets.BFX_API_PAPER_SECRET || '' }}" | tr -d '\n\r')
+        # ALWAYS use paper trading credentials - NEVER real API keys
+        export BFX_API_KEY="${{ secrets.BFX_API_PAPER_KEY }}"
+        export BFX_API_SECRET="${{ secrets.BFX_API_PAPER_SECRET }}"
+        export BFX_API_PAPER_KEY="${{ secrets.BFX_API_PAPER_KEY }}"
+        export BFX_API_PAPER_SECRET="${{ secrets.BFX_API_PAPER_SECRET }}"
         pytest tests/load/ -v --tb=short -k "not long_running"
       timeout-minutes: 15
       env:
