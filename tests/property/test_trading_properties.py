@@ -51,7 +51,7 @@ def market_prices(draw):
 
 @st.composite
 def trading_amounts(draw):
-    """Generate realistic trading amounts."""
+    """Generate realistic trading amounts (always positive - side is handled separately)."""
     # Common trading sizes
     amount_strategies = st.one_of(
         st.decimals(min_value=Decimal("0.001"), max_value=Decimal("0.1"), places=6),  # Small retail
@@ -62,12 +62,8 @@ def trading_amounts(draw):
     )
 
     amount_decimal = draw(amount_strategies)
-    side = draw(st.sampled_from(["buy", "sell"]))
-
-    # Negative for sell orders
-    if side == "sell":
-        amount_decimal = -amount_decimal
-
+    # Amount domain object enforces positive values only
+    # Side ("buy"/"sell") is handled separately in the domain model
     return str(amount_decimal)
 
 
@@ -76,11 +72,9 @@ def order_specifications(draw):
     """Generate complete order specifications."""
     symbol = draw(trading_symbols())
     price = draw(market_prices())
-    amount = draw(trading_amounts())
+    amount = draw(trading_amounts())  # Always positive
+    side = draw(st.sampled_from(["buy", "sell"]))  # Generate side independently
     order_type = draw(st.sampled_from(["EXCHANGE LIMIT", "EXCHANGE MARKET", "EXCHANGE STOP"]))
-
-    # Determine side from amount
-    side = "sell" if Decimal(amount) < 0 else "buy"
 
     return {"symbol": symbol, "amount": amount, "price": price, "side": side, "type": order_type}
 
@@ -139,16 +133,16 @@ class TestOrderValidationProperties:
             pass
 
     @pytest.mark.asyncio
-    @given(trading_symbols(), market_prices(), trading_amounts())
-    async def test_order_parameter_consistency(self, symbol_str, price_str, amount_str):
+    @given(trading_symbols(), market_prices(), trading_amounts(), st.sampled_from(["buy", "sell"]))
+    async def test_order_parameter_consistency(self, symbol_str, price_str, amount_str, side):
         """Test order parameter consistency across operations."""
         trading_service = create_mock_trading_service("normal")
 
         try:
             symbol = Symbol(symbol_str)
             price = Price(price_str)
-            amount = Amount(amount_str)
-            side = "sell" if amount.value < 0 else "buy"
+            amount = Amount(amount_str)  # Always positive
+            # Side is now generated independently
 
             # Place order
             result = await trading_service.place_order(
@@ -520,17 +514,17 @@ class TestTradingBusinessRules:
     """Property-based tests for trading business rules."""
 
     @pytest.mark.asyncio
-    @given(market_prices(), trading_amounts())
-    async def test_post_only_enforcement(self, price_str, amount_str):
+    @given(market_prices(), trading_amounts(), st.sampled_from(["buy", "sell"]))
+    async def test_post_only_enforcement(self, price_str, amount_str, side):
         """Test that POST_ONLY flag is always enforced."""
         trading_service = create_mock_trading_service("normal")
 
         try:
             result = await trading_service.place_order(
                 symbol=Symbol("tBTCUSD"),
-                amount=Amount(amount_str),
+                amount=Amount(amount_str),  # Always positive
                 price=Price(price_str),
-                side="sell" if Amount(amount_str).value < 0 else "buy",
+                side=side,  # Generated independently
             )
 
             # All orders should have POST_ONLY flag (512)

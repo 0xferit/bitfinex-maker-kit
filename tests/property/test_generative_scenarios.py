@@ -774,17 +774,17 @@ class TestGenerativeEdgeCases:
                         )
                         amount = data.draw(
                             st.floats(
-                                min_value=-10, max_value=10, allow_nan=False, allow_infinity=False
+                                min_value=0.001, max_value=10, allow_nan=False, allow_infinity=False
                             )
                         )
+                        side = data.draw(st.sampled_from(["buy", "sell"]))
 
-                        if amount != 0 and price > 0:
-                            side = "sell" if amount < 0 else "buy"
+                        if amount > 0 and price > 0:
                             result = await trading_service.place_order(
                                 symbol=Symbol(symbol),
-                                amount=Amount(str(amount)),
+                                amount=Amount(str(amount)),  # Always positive
                                 price=Price(str(price)),
-                                side=side,
+                                side=side,  # Generated independently
                             )
                             if "id" in result:
                                 placed_order_ids.append(result["id"])
