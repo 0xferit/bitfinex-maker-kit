@@ -230,12 +230,6 @@ class Amount:
         if other <= 0:
             raise ValueError(f"Division divisor must be positive, got: {other}")
 
-        # Check for division by very large numbers that could result in zero
-        if other > self.value * Decimal("1e10"):  # Prevent division by extremely large numbers
-            raise ValueError(
-                "Division by extremely large number would result in effectively zero amount"
-            )
-
         result = self.value / other
         if result <= 0:
             raise ValueError(f"Division would result in non-positive amount: {result}")

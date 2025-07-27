@@ -30,7 +30,7 @@ class OrderFetcher:
         """
         self.client = client
         self._cached_orders = None
-        self._cache_timestamp = 0
+        self._cache_timestamp = 0.0  # Store as float for precision
         self._cache_ttl = 30  # 30 seconds cache TTL
 
     def fetch_order_by_id(self, order_id: int, use_cache: bool = True) -> Any:
@@ -110,7 +110,7 @@ class OrderFetcher:
 
             # Update cache
             self._cached_orders = orders
-            self._cache_timestamp = int(current_time)
+            self._cache_timestamp = current_time  # Store full precision timestamp
 
             logger.debug(f"Fetched {len(orders)} orders from API")
             return list(orders)  # Ensure return type matches annotation
@@ -120,7 +120,7 @@ class OrderFetcher:
 
             # Clear cache on error
             self._cached_orders = None
-            self._cache_timestamp = 0
+            self._cache_timestamp = 0.0  # Consistent with initialization
 
             raise OrderSubmissionError(f"Failed to fetch orders: {e}") from e
 
@@ -128,7 +128,7 @@ class OrderFetcher:
         """Invalidate the order cache to force fresh fetch on next request."""
         logger.debug("Invalidating order cache")
         self._cached_orders = None
-        self._cache_timestamp = 0
+        self._cache_timestamp = 0.0  # Consistent with initialization
 
     def get_cache_info(self) -> dict[str, Any]:
         """
