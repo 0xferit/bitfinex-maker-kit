@@ -16,16 +16,21 @@ from bfxapi import WSS_HOST, Client  # type: ignore
 from ..utilities.constants import POST_ONLY_FLAG, OrderSide, OrderSubmissionError, OrderType
 
 
-def api_error_handler(operation: str) -> Callable:
-    """Decorator to handle API errors consistently across all methods."""
+def api_error_handler(error_message_func: Callable[..., str]) -> Callable:
+    """Decorator to handle API errors with specific context while preserving validation errors."""
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
+            except ValueError:
+                # Re-raise ValueError unchanged - these are validation errors that should bubble up
+                raise
             except Exception as e:
-                raise OrderSubmissionError(f"Failed to {operation}: {e}") from e
+                # Generate specific error message using the provided function
+                error_msg = error_message_func(*args, **kwargs, exception=e)
+                raise OrderSubmissionError(error_msg) from e
 
         return wrapper
 
@@ -96,7 +101,7 @@ class BitfinexAPIClient:
                 f"Failed to submit {normalized_side.value} order: {e}"
             ) from e
 
-    @api_error_handler("get orders")
+    @api_error_handler(lambda _self, **kwargs: f"Failed to get orders: {kwargs['exception']}")
     def get_orders(self) -> list[Any]:
         """Get all active orders."""
         result = self.client.rest.auth.get_orders()
@@ -109,12 +114,20 @@ class BitfinexAPIClient:
             # If result is not a list but not None, wrap it in a list
             return [result]
 
-    @api_error_handler("cancel order")
+    @api_error_handler(
+        lambda _self,
+        order_id,
+        **kwargs: f"Failed to cancel order {order_id}: {kwargs['exception']}"
+    )
     def cancel_order(self, order_id: int) -> Any:
         """Cancel a single order by ID."""
         return self.client.rest.auth.cancel_order(id=order_id)
 
-    @api_error_handler("cancel multiple orders")
+    @api_error_handler(
+        lambda _self,
+        order_ids,
+        **kwargs: f"Failed to cancel {len(order_ids)} orders: {kwargs['exception']}"
+    )
     def cancel_order_multi(self, order_ids: list[int]) -> Any:
         """Cancel multiple orders by IDs."""
         if not order_ids:
@@ -122,12 +135,14 @@ class BitfinexAPIClient:
 
         return self.client.rest.auth.cancel_order_multi(id=order_ids)
 
-    @api_error_handler("get wallets")
+    @api_error_handler(lambda _self, **kwargs: f"Failed to get wallets: {kwargs['exception']}")
     def get_wallets(self) -> Any:
         """Get wallet balances."""
         return self.client.rest.auth.get_wallets()
 
-    @api_error_handler("get ticker")
+    @api_error_handler(
+        lambda _self, symbol, **kwargs: f"Failed to get ticker for {symbol}: {kwargs['exception']}"
+    )
     def get_ticker(self, symbol: str) -> Any:
         """Get ticker data for symbol."""
         if not symbol or not symbol.strip():
@@ -135,7 +150,12 @@ class BitfinexAPIClient:
 
         return self.client.rest.public.get_t_ticker(symbol)
 
-    @api_error_handler("get trades")
+    @api_error_handler(
+        lambda _self,
+        symbol,
+        _limit=1,
+        **kwargs: f"Failed to get trades for {symbol}: {kwargs['exception']}"
+    )
     def get_trades(self, symbol: str, limit: int = 1) -> Any:
         """Get recent trades for symbol."""
         if not symbol or not symbol.strip():
