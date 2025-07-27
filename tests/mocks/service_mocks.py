@@ -715,7 +715,7 @@ class MockMonitoredTradingService:
         # Track in performance monitor
         self.performance_monitor.track_trading_operation("place_order", str(symbol), success)
 
-        return {"success": success, "result": result}
+        return success, result
 
     async def cancel_order(self, order_id, symbol=None):
         """Cancel order with monitoring."""
@@ -724,7 +724,7 @@ class MockMonitoredTradingService:
         symbol_str = str(symbol) if symbol else "unknown"
         self.performance_monitor.track_trading_operation("cancel_order", symbol_str, success)
 
-        return {"success": success, "result": result}
+        return success, result
 
     async def get_orders(self, symbol=None):
         """Get orders with monitoring."""
