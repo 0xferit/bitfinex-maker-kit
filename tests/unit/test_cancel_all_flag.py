@@ -20,17 +20,17 @@ class TestCancelAllFlag:
     def mock_orders_pnkusd(self):
         """Mock orders for default symbol (tPNKUSD)."""
         return [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50"),
-            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51"),
+            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
         ]
 
     @pytest.fixture
     def mock_orders_mixed(self):
         """Mock orders for mixed symbols."""
         return [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50"),
-            Mock(id=2, symbol="tBTCUSD", amount="0.1", price="50000.0"),
-            Mock(id=3, symbol="tETHUSD", amount="1.0", price="3000.0"),
+            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=2, symbol="tBTCUSD", amount="0.1", price="50000.0", order_type="LIMIT"),
+            Mock(id=3, symbol="tETHUSD", amount="1.0", price="3000.0", order_type="LIMIT"),
         ]
 
     @pytest.fixture
@@ -147,7 +147,7 @@ class TestCancelAllFlag:
         with (
             patch("bitfinex_maker_kit.commands.cancel.get_container", return_value=container),
             patch("builtins.input", return_value="y"),
-            patch("bitfinex_maker_kit.commands.cancel.DEFAULT_SYMBOL", "tPNKUSD"),
+            patch("bitfinex_maker_kit.utilities.constants.DEFAULT_SYMBOL", "tPNKUSD"),
         ):
             cancel_orders_by_criteria(all_orders=True)
 
@@ -184,7 +184,7 @@ class TestCancelAllFlag:
             cancel_orders_by_criteria(all_orders=True, dry_run=True)
 
         # Should show dry-run message
-        mock_print.assert_any_call("🔍 DRY RUN - Found 2 orders that would be cancelled")
+        mock_print.assert_any_call("\n🔍 DRY RUN - Found 2 orders that would be cancelled")
 
         # Should not actually cancel orders
         client.cancel_order_multi.assert_not_called()
@@ -228,12 +228,24 @@ class TestCancelAllFlag:
 class TestCancelAllMigrationFromClear:
     """Test migration scenarios from old clear command to cancel --all."""
 
+    @pytest.fixture
+    def mock_container_setup(self):
+        """Set up mock container with services."""
+        container = Mock()
+        trading_service = Mock()
+        client = Mock()
+
+        container.create_trading_service.return_value = trading_service
+        container.create_bitfinex_client.return_value = client
+
+        return container, trading_service, client
+
     def test_clear_command_equivalent_behavior(self, mock_container_setup):
         """Test that cancel --all provides equivalent functionality to old clear command."""
         container, trading_service, client = mock_container_setup
         mock_orders = [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50"),
-            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51"),
+            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
         ]
         trading_service.get_orders.return_value = mock_orders
 
@@ -251,7 +263,7 @@ class TestCancelAllMigrationFromClear:
         """Test that cancel --all provides enhanced functionality beyond old clear."""
         container, trading_service, client = mock_container_setup
         trading_service.get_orders.return_value = [
-            Mock(id=1, symbol="tBTCUSD", amount="0.1", price="50000.0"),
+            Mock(id=1, symbol="tBTCUSD", amount="0.1", price="50000.0", order_type="LIMIT"),
         ]
 
         with (
