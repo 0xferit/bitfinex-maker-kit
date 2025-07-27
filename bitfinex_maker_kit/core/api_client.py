@@ -57,21 +57,22 @@ class BitfinexAPIClient:
         # Convert amount based on side (Bitfinex uses positive for buy, negative for sell)
         bitfinex_amount = amount if normalized_side == OrderSide.BUY else -amount
 
+        # ARCHITECTURAL SAFETY: This program ONLY supports POST_ONLY limit orders
+        # Market orders are FORBIDDEN as they take liquidity and violate maker-only strategy
+        if price is None:
+            raise OrderSubmissionError(
+                "Market orders are not supported. This program only supports POST_ONLY limit orders for maker-only trading."
+            )
+
         try:
-            if price is None:
-                # Market order - no POST_ONLY flag needed, use placeholder price
-                return self.client.rest.auth.submit_order(
-                    type=OrderType.MARKET.value, symbol=symbol, amount=bitfinex_amount, price=0.0
-                )
-            else:
-                # Limit order - ALWAYS enforce POST_ONLY flag
-                return self.client.rest.auth.submit_order(
-                    type=OrderType.LIMIT.value,
-                    symbol=symbol,
-                    amount=bitfinex_amount,
-                    price=price,
-                    flags=POST_ONLY_FLAG,  # POST_ONLY flag - HARDCODED at API boundary
-                )
+            # ONLY limit orders with POST_ONLY flag - ARCHITECTURALLY ENFORCED
+            return self.client.rest.auth.submit_order(
+                type=OrderType.LIMIT.value,
+                symbol=symbol,
+                amount=bitfinex_amount,
+                price=price,
+                flags=POST_ONLY_FLAG,  # POST_ONLY flag - HARDCODED at API boundary
+            )
         except Exception as e:
             raise OrderSubmissionError(
                 f"Failed to submit {normalized_side.value} order: {e}"
@@ -167,7 +168,13 @@ class BitfinexAPIClient:
         if amount <= 0:
             raise ValueError("Amount must be positive")
 
-        if price is not None and price <= 0:
+        # ARCHITECTURAL ENFORCEMENT: Price is REQUIRED for POST_ONLY limit orders
+        if price is None:
+            raise ValueError(
+                "Price is required. Market orders are not supported - only POST_ONLY limit orders."
+            )
+
+        if price <= 0:
             raise ValueError("Price must be positive for limit orders")
 
 

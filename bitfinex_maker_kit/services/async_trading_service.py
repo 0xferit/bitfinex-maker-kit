@@ -68,7 +68,7 @@ class AsyncTradingService:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                None, self._place_order_sync, symbol_str, amount_float, side, price_float
+                None, self._place_order_sync, symbol_str, side, amount_float, price_float
             )
 
             return result
@@ -78,13 +78,14 @@ class AsyncTradingService:
             return False, str(e)
 
     def _place_order_sync(
-        self, symbol: str, amount: float, side: str, price: float | None
+        self, symbol: str, side: str, amount: float, price: float | None
     ) -> tuple[bool, Any]:
         """Synchronous order placement wrapper."""
         from ..utilities.orders import submit_order
 
         try:
-            result = submit_order(symbol=symbol, amount=amount, side=side, price=price)
+            # Fixed parameter order: (symbol, side, amount, price)
+            result = submit_order(symbol=symbol, side=side, amount=amount, price=price)
             return True, result
         except Exception as e:
             logger.error(f"Error in synchronous order placement: {e}")
