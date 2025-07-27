@@ -6,6 +6,7 @@ Provides type-safe symbol representation with validation for Bitfinex format.
 
 import re
 from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,10 @@ class Symbol:
     value: str
 
     # Bitfinex symbol pattern: starts with 't' or 'f', followed by base and quote currencies
-    _BITFINEX_PATTERN = re.compile(r"^[tf][A-Z]{3,5}[A-Z]{3,4}$")
+    _BITFINEX_PATTERN: ClassVar = re.compile(r"^[tf][A-Z]{3,5}[A-Z]{3,4}$")
+
+    # Paper trading test symbols (special case for testing environments)
+    _PAPER_TRADING_SYMBOLS: ClassVar = {"tTESTBTCTESTUSD", "tTESTBTCTESTUSDT"}
 
     def __post_init__(self) -> None:
         """Validate symbol after initialization."""
@@ -30,11 +34,16 @@ class Symbol:
         if not isinstance(self.value, str):
             raise ValueError(f"Symbol must be a string, got: {type(self.value)}")
 
-        # Validate Bitfinex format
+        # Allow paper trading test symbols (bypass normal validation)
+        if self.value in self._PAPER_TRADING_SYMBOLS:
+            return
+
+        # Validate Bitfinex format for regular symbols
         if not self._BITFINEX_PATTERN.match(self.value):
             raise ValueError(
                 f"Invalid Bitfinex symbol format: {self.value}. "
-                f"Expected format: [t|f]<BASE><QUOTE> (e.g., tBTCUSD, fBTCUSD, tETHUSD)"
+                f"Expected format: [t|f]<BASE><QUOTE> (e.g., tBTCUSD, fBTCUSD, tETHUSD) "
+                f"or paper trading symbols: {', '.join(self._PAPER_TRADING_SYMBOLS)}"
             )
 
     @classmethod
@@ -58,6 +67,10 @@ class Symbol:
 
     def get_base_currency(self) -> str:
         """Extract base currency from symbol (e.g., 'BTC' from 'tBTCUSD')."""
+        # Handle paper trading test symbols specially
+        if self.value == "tTESTBTCTESTUSD" or self.value == "tTESTBTCTESTUSDT":
+            return "TESTBTC"
+
         # Remove 't' prefix and extract base currency
         # Most symbols are 6-7 chars: t + 3-4 base + 3 quote
         # Some special cases exist, so we need to handle various lengths
@@ -89,6 +102,12 @@ class Symbol:
 
     def get_quote_currency(self) -> str:
         """Extract quote currency from symbol (e.g., 'USD' from 'tBTCUSD')."""
+        # Handle paper trading test symbols specially
+        if self.value == "tTESTBTCTESTUSD":
+            return "TESTUSD"
+        elif self.value == "tTESTBTCTESTUSDT":
+            return "TESTUSDT"
+
         symbol_without_t = self.value[1:]  # Remove 't'
         base = self.get_base_currency()
         return symbol_without_t[len(base) :]
