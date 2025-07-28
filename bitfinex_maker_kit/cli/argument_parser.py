@@ -146,7 +146,7 @@ class CLIArgumentParser:
             help="Filter by order direction (buy/sell)",
         )
         parser_update.add_argument(
-            "--filter-symbol", default=None, help="Filter by symbol (e.g., tPNKUSD)"
+            "--filter-symbol", default=None, help="Filter by symbol (e.g., tBTCUSD)"
         )
 
         parser_update.add_argument(

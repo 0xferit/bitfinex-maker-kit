@@ -10,7 +10,7 @@ from typing import Final
 
 # API Constants
 POST_ONLY_FLAG: Final[int] = 4096
-DEFAULT_SYMBOL: Final[str] = "tPNKUSD"
+DEFAULT_SYMBOL: Final[str] = "tBTCUSD"
 
 # Default Trading Parameters
 DEFAULT_LEVELS: Final[int] = 3

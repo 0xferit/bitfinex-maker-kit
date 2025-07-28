@@ -7,7 +7,7 @@
 ### Key Characteristics
 - **Language**: Python 3.12+ (strictly enforced)
 - **License**: MIT (open source)
-- **Version**: 4.2.44 (production-ready)
+- **Version**: 4.2.49 (production-ready)
 - **Purpose**: Market making and automated trading on Bitfinex
 - **Architecture**: Single exchange, single strategy, safety-focused design
 
@@ -83,7 +83,7 @@ pipx install .
 - **Environment**: Requires `.env` file with API credentials
 
 ### Configuration
-- **Default Symbol**: `tPNKUSD`
+- **Default Symbol**: `tBTCUSD`
 - **Default Levels**: 3
 - **Default Spread**: 1.0%
 - **Default Order Size**: 10.0

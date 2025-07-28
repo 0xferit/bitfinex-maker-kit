@@ -36,7 +36,7 @@ def submit_order(
     Falls back to legacy create_client() for backward compatibility.
 
     Args:
-        symbol: Trading symbol (e.g., "tPNKUSD")
+        symbol: Trading symbol (e.g., "tBTCUSD")
         side: Order side ("buy"/"sell" or OrderSide enum)
         amount: Order amount (positive number)
         price: Order price (None for market orders, float for limit orders)

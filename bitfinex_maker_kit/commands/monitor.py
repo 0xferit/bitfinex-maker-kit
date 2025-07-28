@@ -70,10 +70,10 @@ class MonitorDisplay:
         self.terminal_width = max(120, min(self.terminal_width, 300))
         self.terminal_height = max(25, min(self.terminal_height, 100))
 
-        # Extract base currency from symbol (e.g., tBTCUSD -> BTC, tPNKUSD -> PNK)
+        # Extract base currency from symbol (e.g., tBTCUSD -> BTC, tETHUSD -> ETH)
         if symbol.startswith("t") and len(symbol) >= 7:
-            # Standard format: tBTCUSD, tETHUSD, tPNKUSD
-            self.base_currency = symbol[1:4]  # BTC, ETH, PNK
+            # Standard format: tBTCUSD, tETHUSD, etc.
+            self.base_currency = symbol[1:4]  # BTC, ETH, etc.
         elif symbol.startswith("t") and "USD" in symbol:
             # Handle longer symbols like tADAUSD -> ADA
             self.base_currency = symbol[1 : symbol.find("USD")]

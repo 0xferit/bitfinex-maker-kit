@@ -36,7 +36,7 @@ class BitfinexAPIClient:
         Submit order with enforced POST_ONLY for limit orders.
 
         Args:
-            symbol: Trading symbol (e.g., "tPNKUSD")
+            symbol: Trading symbol (e.g., "tBTCUSD")
             side: Order side ("buy"/"sell" or OrderSide enum)
             amount: Order amount (positive number)
             price: Price for limit orders, None for market orders
