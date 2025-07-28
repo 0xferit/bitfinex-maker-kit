@@ -60,15 +60,15 @@ class MonitorDisplay:
         self.terminal_width = max(120, min(self.terminal_width, 300))
         self.terminal_height = max(25, min(self.terminal_height, 100))
 
-        # Extract base currency from symbol (e.g., tBTCUSD -> BTC, tETHUSD -> ETH)
-        if symbol.startswith("t") and len(symbol) >= 7:
-            # Standard format: tBTCUSD, tETHUSD, etc.
-            self.base_currency = symbol[1:4]  # BTC, ETH, etc.
-        elif symbol.startswith("t") and "USD" in symbol:
-            # Handle longer symbols like tADAUSD -> ADA
-            self.base_currency = symbol[1 : symbol.find("USD")]
+        # Extract base currency from symbol (e.g., tBTCUSD -> BTC, tUSDCUSD -> USDC)
+        if symbol.startswith("t") and symbol.endswith("USD"):
+            # Handle all USD pairs: tBTCUSD -> BTC, tUSDCUSD -> USDC, tADAUSD -> ADA
+            self.base_currency = symbol[1:-3]  # Remove 't' prefix and 'USD' suffix
+        elif symbol.startswith("t") and len(symbol) >= 4:
+            # Fallback for other formats: take everything after 't' and before quote currency
+            self.base_currency = symbol[1:4]  # Default to first 3 chars
         else:
-            # Fallback for other formats
+            # Final fallback for unknown formats
             self.base_currency = symbol.replace("t", "").replace("USD", "")[:3]
 
         # Data storage - all initially empty, populated by real WebSocket data
