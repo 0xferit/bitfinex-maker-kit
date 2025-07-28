@@ -9,6 +9,7 @@ from .cancel import cancel_command
 from .fill_spread import fill_spread_command
 from .list import list_command
 from .market_make import market_make_command
+from .monitor import monitor_command_sync as monitor_command
 from .put import put_command
 from .test import test_command
 from .update import update_command
@@ -19,6 +20,7 @@ __all__ = [
     "fill_spread_command",
     "list_command",
     "market_make_command",
+    "monitor_command",
     "put_command",
     "test_command",
     "update_command",

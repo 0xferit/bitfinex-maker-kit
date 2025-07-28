@@ -7,7 +7,7 @@
 ### Key Characteristics
 - **Language**: Python 3.12+ (strictly enforced)
 - **License**: MIT (open source)
-- **Version**: 4.0.0 (production-ready)
+- **Version**: 4.2.44 (production-ready)
 - **Purpose**: Market making and automated trading on Bitfinex
 - **Architecture**: Single exchange, single strategy, safety-focused design
 
@@ -154,3 +154,8 @@ python -m bitfinex_maker_kit list
 # Market make with 5 levels, 2% spread
 python -m bitfinex_maker_kit market-make --levels 5 --spread 2.0
 ```
+
+## Operational Memories
+
+### Monitoring and CLI Behavior
+- No REST in monitor command: The CLI does not support a persistent monitoring mode, requiring manual command invocation for order status checks
