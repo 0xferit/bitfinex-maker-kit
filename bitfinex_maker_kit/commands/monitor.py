@@ -53,10 +53,10 @@ class MonitorDisplay:
             self.terminal_height = term_size.lines
         except (AttributeError, OSError):
             try:
-                import subprocess
+                import subprocess  # nosec B404
 
-                cols_result = subprocess.run(["tput", "cols"], capture_output=True, text=True)
-                lines_result = subprocess.run(["tput", "lines"], capture_output=True, text=True)
+                cols_result = subprocess.run(["tput", "cols"], capture_output=True, text=True)  # nosec B603, B607
+                lines_result = subprocess.run(["tput", "lines"], capture_output=True, text=True)  # nosec B603, B607
                 self.terminal_width = (
                     int(cols_result.stdout.strip()) if cols_result.returncode == 0 else 200
                 )
@@ -83,17 +83,17 @@ class MonitorDisplay:
             self.base_currency = symbol.replace("t", "").replace("USD", "")[:3]
 
         # Data storage - all initially empty, populated by real WebSocket data
-        self.order_book = {"bids": [], "asks": []}
-        self.recent_trades = deque(maxlen=10)
-        self.user_orders = []
+        self.order_book: dict[str, list[list[float]]] = {"bids": [], "asks": []}
+        self.recent_trades: deque[dict[str, Any]] = deque(maxlen=10)
+        self.user_orders: list[OrderData] = []
 
         # Calculate dynamic events log size based on terminal height
         # Available height = terminal_height - header(2) - footer(1) - margins(~5)
         available_height = self.terminal_height - 8
-        self.events_log = deque(maxlen=max(15, available_height))
+        self.events_log: deque[str] = deque(maxlen=max(15, available_height))
 
         # Store client reference for order fetching
-        self.client = None
+        self.client: BitfinexClientWrapper | None = None
         self.connection_stats = {
             "trades_channel": False,
             "book_channel": False,
@@ -266,7 +266,7 @@ class MonitorDisplay:
         else:
             self.connection_stats["user_orders_in_range"] = 0
 
-    def parse_order_data(self, order_data: list) -> OrderData:
+    def parse_order_data(self, order_data: list) -> OrderData | None:
         """Convert raw Bitfinex order array to OrderData object."""
         try:
             # Bitfinex order array format: [ID, GID, CID, SYMBOL, MTS_CREATE, MTS_UPDATE, AMOUNT, AMOUNT_ORIG, ORDER_TYPE, TYPE_PREV, MTS_TIF, PLACEHOLDER, FLAGS, STATUS, PLACEHOLDER, PLACEHOLDER, PRICE, ...]
@@ -391,7 +391,7 @@ class MonitorDisplay:
                         liq_2pct_ask_usd += float(ask[1]) * ask_price  # volume * price = USD
 
             # Format USD amounts with appropriate units
-            def format_usd(amount):
+            def format_usd(amount: float) -> str:
                 if amount >= 1_000_000:
                     return f"${amount / 1_000_000:.1f}M"
                 elif amount >= 1_000:
@@ -644,14 +644,14 @@ class MonitorDisplay:
         lines.append("LATEST TRADES (MARKET + MINE)")
         lines.append("─" * left_width)
 
-        # Calculate how many trades we can show based on available space
+        # Calculate how mAny trades we can show based on available space
         current_lines_used = len(lines)
         available_height = self.terminal_height - 8  # Reserve space for header/footer
         remaining_space = max(3, available_height - current_lines_used)  # At least 3 trades
 
         # Real trade data from WebSocket
         if self.recent_trades:
-            # Show as many trades as fit in the remaining space
+            # Show as mAny trades as fit in the remaining space
             displayed_trades = list(self.recent_trades)[-remaining_space:]
             for trade in displayed_trades:
                 raw_timestamp = trade.get("timestamp", 0)
@@ -691,7 +691,7 @@ class MonitorDisplay:
         )  # 3/7 ≈ 42% for events
         lines.append("─" * right_width)
 
-        # Calculate how many events we can show based on available vertical space
+        # Calculate how mAny events we can show based on available vertical space
         # Available space = terminal height - header(2) - footer(1) - panel headers(~8)
         max_events_to_show = max(10, self.terminal_height - 15)
 
@@ -823,12 +823,12 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
         display.add_event("Setting up WebSocket event handlers...")
 
         @wss.on("open")
-        def on_open():
+        def on_open() -> None:
             display.add_event("WebSocket connection opened", "CONN")
             print("🔌 WebSocket connection established")
 
         @wss.on("authenticated")
-        async def on_authenticated(data):
+        async def on_authenticated(data: Any) -> None:
             display.add_event("WebSocket authentication successful", "CONN")
             display.connection_stats["authenticated"] = True
             print("🔐 WebSocket authenticated successfully")
@@ -858,7 +858,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 print(f"❌ Subscription error: {e}")
 
         @wss.on("t_ticker_update")
-        def on_ticker_update(subscription, ticker_data):
+        def on_ticker_update(subscription: Any, ticker_data: Any) -> None:
             display.add_event("Ticker data received", "TICK")
             display.connection_stats["book_events"] += 1  # Count ticker as market data
             # Convert ticker object to list format expected by display
@@ -882,7 +882,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.update_market_data_from_ticker(ticker_data)
 
         @wss.on("t_book_snapshot")
-        def on_book_snapshot(subscription, book_data):
+        def on_book_snapshot(subscription: Any, book_data: Any) -> None:
             display.add_event("Order book snapshot received", "BOOK")
             display.connection_stats["book_events"] += 1
             # Convert snapshot data to format expected by display
@@ -905,7 +905,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
             display.update_order_book({"bids": bids, "asks": asks})
 
         @wss.on("t_book_update")
-        def on_book_update(subscription, book_level):
+        def on_book_update(subscription: Any, book_level: Any) -> None:
             display.connection_stats["book_events"] += 1
 
             # Process incremental order book update
@@ -975,7 +975,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.add_event(f"Error processing book update: {e}", "ERR")
 
         @wss.on("t_trades_snapshot")
-        def on_trades_snapshot(subscription, trades_data):
+        def on_trades_snapshot(subscription: Any, trades_data: Any) -> None:
             display.add_event(f"Trades snapshot received: {len(trades_data)} trades", "TRADE")
             display.connection_stats["trades_events"] += 1
             # Add recent trades to display
@@ -990,7 +990,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.add_trade(trade_dict)
 
         @wss.on("t_trade_execution")
-        def on_trade_execution(subscription, trade_data):
+        def on_trade_execution(subscription: Any, trade_data: Any) -> None:
             display.add_event("New trade executed", "TRADE")
             display.connection_stats["trades_events"] += 1
             # Access object properties with correct names
@@ -1003,7 +1003,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
             display.add_trade(trade_dict)
 
         @wss.on("t_trade_execution_update")
-        def on_trade_execution_update(subscription, trade_data):
+        def on_trade_execution_update(subscription: Any, trade_data: Any) -> None:
             display.add_event("Trade execution update", "TRADE")
             display.connection_stats["trades_events"] += 1
             # Access object properties with correct names
@@ -1016,13 +1016,13 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
             display.add_trade(trade_dict)
 
         @wss.on("disconnected")
-        def on_disconnected():
+        def on_disconnected() -> None:
             display.add_event("WebSocket disconnected", "DISC")
             print("⚠️ WebSocket disconnected")
 
         # Handle authenticated order events using proper WebSocket event names
         @wss.on("order_snapshot")  # Full order snapshot
-        def on_auth_order_snapshot(orders_data):
+        def on_auth_order_snapshot(orders_data: Any) -> None:
             """Handle order snapshot from authenticated WebSocket."""
             display.add_event(
                 f"Order snapshot: {len(orders_data) if hasattr(orders_data, '__len__') else '?'} orders"
@@ -1073,7 +1073,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.add_event(f"Unexpected order_snapshot format: {type(orders_data)}")
 
         @wss.on("order_new")  # New order created
-        def on_auth_order_new(order_data):
+        def on_auth_order_new(order_data: Any) -> None:
             """Handle new order from authenticated WebSocket."""
             display.add_event(f"New order: {getattr(order_data, 'symbol', 'Unknown')}")
 
@@ -1105,7 +1105,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.add_event(f"Unexpected order_new format: {type(order_data)}")
 
         @wss.on("order_update")  # Order updated
-        def on_auth_order_update(order_data):
+        def on_auth_order_update(order_data: Any) -> None:
             """Handle order update from authenticated WebSocket."""
             display.add_event(f"Order update: {getattr(order_data, 'symbol', 'Unknown')}")
 
@@ -1137,7 +1137,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
                 display.add_event(f"Unexpected order_update format: {type(order_data)}")
 
         @wss.on("order_cancel")  # Order cancelled
-        def on_auth_order_cancel(order_data):
+        def on_auth_order_cancel(order_data: Any) -> None:
             """Handle order cancel from authenticated WebSocket."""
             display.add_event(f"Order cancel: {getattr(order_data, 'symbol', 'Unknown')}")
 
@@ -1232,7 +1232,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
             if "wss" in locals():
                 await wss.close()
         except Exception:
-            pass
+            pass  # nosec B110
         print("\n✅ Market monitor stopped")
 
 
