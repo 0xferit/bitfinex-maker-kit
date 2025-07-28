@@ -146,7 +146,7 @@ class CLIArgumentParser:
             help="Filter by order direction (buy/sell)",
         )
         parser_update.add_argument(
-            "--filter-symbol", default=None, help="Filter by symbol (e.g., tPNKUSD)"
+            "--filter-symbol", default=None, help="Filter by symbol (e.g., tBTCUSD)"
         )
 
         parser_update.add_argument(
@@ -236,6 +236,22 @@ class CLIArgumentParser:
         )
         parser_fill.add_argument(
             "-y", "--yes", action="store_true", help="Skip confirmation prompt"
+        )
+
+        # Monitor subcommand
+        parser_monitor = self.subparsers.add_parser(
+            "monitor", help="Real-time market monitoring with WebSocket feeds"
+        )
+        parser_monitor.add_argument(
+            "--symbol",
+            default=DEFAULT_SYMBOL,
+            help=f"Trading symbol to monitor (default: {DEFAULT_SYMBOL})",
+        )
+        parser_monitor.add_argument(
+            "--levels",
+            type=int,
+            default=40,
+            help="Number of order book levels to display (default: 40)",
         )
 
 

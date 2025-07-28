@@ -13,6 +13,7 @@ from ..commands import (
     fill_spread_command,
     list_command,
     market_make_command,
+    monitor_command,
     put_command,
     test_command,
     update_command,
@@ -39,6 +40,7 @@ class CommandRouter:
             "list": self._route_list,
             "market-make": self._route_market_make,
             "fill-spread": self._route_fill_spread,
+            "monitor": self._route_monitor,
         }
 
     def route_command(self, args: argparse.Namespace) -> None:
@@ -126,6 +128,10 @@ class CommandRouter:
         fill_spread_command(
             args.symbol, args.target_spread, args.size, args.center, args.dry_run, args.yes
         )
+
+    def _route_monitor(self, args: argparse.Namespace) -> None:
+        """Route monitor command."""
+        monitor_command(args.symbol, args.levels)
 
     def get_available_commands(self) -> list[str]:
         """Get list of available commands."""

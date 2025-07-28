@@ -35,7 +35,7 @@ class PlaceOrderCommand(TransactionalCommand):
         Initialize place order command.
 
         Args:
-            symbol: Trading symbol (e.g., 'tPNKUSD')
+            symbol: Trading symbol (e.g., 'tBTCUSD')
             side: Order side ('buy' or 'sell')
             amount: Order amount in base currency
             price: Order price (None for market orders)

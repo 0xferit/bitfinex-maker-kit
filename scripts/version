@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Simple wrapper script for version bumping.
+#
+# Usage:
+#     ./scripts/version patch    # Bug fixes
+#     ./scripts/version minor    # New features
+#     ./scripts/version major    # Breaking changes
+#     ./scripts/version show     # Show current version
+#     ./scripts/version help     # Show help
+#
+
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Handle different commands
+case "${1:-help}" in
+    patch|minor|major)
+        echo "🔧 Bumping $1 version..."
+        python "$SCRIPT_DIR/bump_version.py" "$1"
+        ;;
+    show|current)
+        python "$SCRIPT_DIR/bump_version.py" --show
+        ;;
+    validate|check)
+        python "$SCRIPT_DIR/bump_version.py" --validate
+        ;;
+    help|--help|-h)
+        echo "Version Bump Script for Bitfinex Maker-Kit"
+        echo ""
+        echo "Usage:"
+        echo "  ./scripts/version patch    # Bug fixes (4.0.1 -> 4.0.2)"
+        echo "  ./scripts/version minor    # New features (4.0.1 -> 4.1.0)"
+        echo "  ./scripts/version major    # Breaking changes (4.0.1 -> 5.0.0)"
+        echo "  ./scripts/version show     # Show current version"
+        echo "  ./scripts/version validate # Validate version files"
+        echo "  ./scripts/version help     # Show this help"
+        echo ""
+        echo "Semantic Versioning:"
+        echo "  MAJOR: Breaking changes that require API updates"
+        echo "  MINOR: New features that are backward compatible"
+        echo "  PATCH: Bug fixes that are backward compatible"
+        echo ""
+        echo "For advanced options, use:"
+        echo "  python scripts/bump_version.py --help"
+        ;;
+    *)
+        echo "❌ Unknown command: $1"
+        echo "Use './scripts/version help' for usage information"
+        exit 1
+        ;;
+esac

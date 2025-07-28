@@ -18,17 +18,17 @@ class TestCancelAllFlag:
 
     @pytest.fixture
     def mock_orders_pnkusd(self):
-        """Mock orders for default symbol (tPNKUSD)."""
+        """Mock orders for default symbol (tBTCUSD)."""
         return [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
-            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
+            Mock(id=1, symbol="tBTCUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=2, symbol="tBTCUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
         ]
 
     @pytest.fixture
     def mock_orders_mixed(self):
         """Mock orders for mixed symbols."""
         return [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=1, symbol="tETHUSD", amount="10.0", price="0.50", order_type="LIMIT"),
             Mock(id=2, symbol="tBTCUSD", amount="0.1", price="50000.0", order_type="LIMIT"),
             Mock(id=3, symbol="tETHUSD", amount="1.0", price="3000.0", order_type="LIMIT"),
         ]
@@ -58,8 +58,8 @@ class TestCancelAllFlag:
             cancel_orders_by_criteria(all_orders=True)
 
         # Should show default symbol message
-        mock_print.assert_any_call("💡 No symbol specified, using default symbol: tPNKUSD")
-        mock_print.assert_any_call("Getting active orders for tPNKUSD...")
+        mock_print.assert_any_call("💡 No symbol specified, using default symbol: tBTCUSD")
+        mock_print.assert_any_call("Getting active orders for tBTCUSD...")
 
         # Should cancel all orders for default symbol
         client.cancel_order_multi.assert_called_once_with([1, 2])
@@ -112,10 +112,10 @@ class TestCancelAllFlag:
             patch("builtins.input", return_value="y"),
         ):
             # Test existing criteria-based cancellation still works
-            cancel_orders_by_criteria(size=10.0, direction="buy", symbol="tPNKUSD")
+            cancel_orders_by_criteria(size=0.1, direction="buy", symbol="tBTCUSD")
 
         # Should only cancel the specific order matching criteria
-        client.cancel_order_multi.assert_called_once_with([1])
+        client.cancel_order_multi.assert_called_once_with([2])
 
     def test_cancel_all_vs_criteria_precedence(self, mock_orders_mixed, mock_container_setup):
         """Test that --all flag takes precedence over other criteria."""
@@ -129,13 +129,13 @@ class TestCancelAllFlag:
             # Even with other criteria, --all should cancel all orders for symbol
             cancel_orders_by_criteria(
                 all_orders=True,
-                symbol="tPNKUSD",
+                symbol="tBTCUSD",
                 size=999.0,  # This should be ignored
                 direction="sell",  # This should be ignored
             )
 
-        # Should cancel all PNKUSD orders, ignoring size/direction criteria
-        client.cancel_order_multi.assert_called_once_with([1])
+        # Should cancel all tBTCUSD orders, ignoring size/direction criteria
+        client.cancel_order_multi.assert_called_once_with([2])
 
     def test_cancel_all_symbol_resolution_efficiency(
         self, mock_orders_pnkusd, mock_container_setup
@@ -147,7 +147,7 @@ class TestCancelAllFlag:
         with (
             patch("bitfinex_maker_kit.commands.cancel.get_container", return_value=container),
             patch("builtins.input", return_value="y"),
-            patch("bitfinex_maker_kit.utilities.constants.DEFAULT_SYMBOL", "tPNKUSD"),
+            patch("bitfinex_maker_kit.utilities.constants.DEFAULT_SYMBOL", "tBTCUSD"),
         ):
             cancel_orders_by_criteria(all_orders=True)
 
@@ -244,8 +244,8 @@ class TestCancelAllMigrationFromClear:
         """Test that cancel --all provides equivalent functionality to old clear command."""
         container, trading_service, client = mock_container_setup
         mock_orders = [
-            Mock(id=1, symbol="tPNKUSD", amount="10.0", price="0.50", order_type="LIMIT"),
-            Mock(id=2, symbol="tPNKUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
+            Mock(id=1, symbol="tBTCUSD", amount="10.0", price="0.50", order_type="LIMIT"),
+            Mock(id=2, symbol="tBTCUSD", amount="-5.0", price="0.51", order_type="LIMIT"),
         ]
         trading_service.get_orders.return_value = mock_orders
 
