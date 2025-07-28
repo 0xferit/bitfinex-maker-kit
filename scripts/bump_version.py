@@ -42,11 +42,6 @@ class VersionBumper:
                 "pattern": r'__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"',
                 "replacement": r'__version__ = "{new_version}"'
             },
-            "monitor.py": {
-                "path": project_root / "bitfinex_maker_kit" / "commands" / "monitor.py",
-                "pattern": r'footer = f"v([0-9]+\.[0-9]+\.[0-9]+)',
-                "replacement": r'footer = f"v{new_version}'
-            },
             "CLAUDE.md": {
                 "path": project_root / "CLAUDE.md",
                 "pattern": r'- \*\*Version\*\*: ([0-9]+\.[0-9]+\.[0-9]+)',

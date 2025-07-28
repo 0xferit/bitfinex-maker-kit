@@ -10,6 +10,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any
 
+from .. import __version__
 from ..bitfinex_client import BitfinexClientWrapper
 
 
@@ -544,4 +545,5 @@ class MonitorDisplay:
         # Footer
         uptime = int(time.time() - self.start_time)
         uptime_str = f"{uptime // 60}:{uptime % 60:02d}"
-        print(f"\nUptime: {uptime_str} | ESC/Ctrl+C to exit")
+        footer = f"v{__version__} | Uptime: {uptime_str} | ESC/Ctrl+C to exit"
+        print(f"\n{footer}")
