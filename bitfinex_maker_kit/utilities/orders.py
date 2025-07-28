@@ -32,7 +32,8 @@ def submit_order(
     """
     Centralized order submission function that ENFORCES POST_ONLY for all limit orders.
 
-    REFACTORED: Now uses dependency injection for better testability and maintainability.
+    REFACTORED: Now uses dependency injection with wrapper pattern for better testability
+    and maintainability. The wrapper automatically enforces POST_ONLY for all orders.
     Falls back to legacy create_client() for backward compatibility.
 
     Args:

@@ -13,7 +13,7 @@ import pytest
 from bitfinex_maker_kit.domain.amount import Amount
 from bitfinex_maker_kit.domain.price import Price
 from bitfinex_maker_kit.domain.symbol import Symbol
-from bitfinex_maker_kit.utilities.profiler import CodeProfiler, MemoryProfiler, PerformanceOptimizer
+from bitfinex_maker_kit.utilities.profiler import PerformanceProfiler
 
 from ..mocks.service_mocks import create_mock_trading_service
 

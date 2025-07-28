@@ -6,6 +6,7 @@ and connection statistics in real-time using WebSocket feeds.
 """
 
 import asyncio
+import contextlib
 import os
 import signal
 import sys
@@ -62,7 +63,7 @@ class MonitorDisplay:
                 self.terminal_height = (
                     int(lines_result.stdout.strip()) if lines_result.returncode == 0 else 50
                 )
-            except:
+            except Exception:
                 self.terminal_width = 200  # Default to wider display
                 self.terminal_height = 50  # Default height
 
@@ -369,10 +370,6 @@ class MonitorDisplay:
 
         # Dynamic column distribution based on terminal width - 2:2:3 ratio
         # Total 7 parts: metrics=2, orders=2, events=3
-        total_parts = 7
-        left_width = int(self.terminal_width * 2 / total_parts)  # 2/7 ≈ 29% for connection stats
-        center_width = int(self.terminal_width * 2 / total_parts)  # 2/7 ≈ 29% for order book
-        right_width = self.terminal_width - left_width - center_width - 2  # 3/7 ≈ 42% for events
 
         if current_price > 0:
             # Calculate liquidity within 2% of mid price in USD equivalent
@@ -659,7 +656,7 @@ class MonitorDisplay:
             for trade in displayed_trades:
                 raw_timestamp = trade.get("timestamp", 0)
                 # Convert millisecond timestamp to readable format
-                if isinstance(raw_timestamp, (int, float)) and raw_timestamp > 0:
+                if isinstance(raw_timestamp, int | float) and raw_timestamp > 0:
                     timestamp_dt = datetime.fromtimestamp(raw_timestamp / 1000)
                     timestamp = timestamp_dt.strftime("%H:%M:%S")
                 else:
@@ -1228,10 +1225,8 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
             # Cancel the WebSocket background task
             if "websocket_task" in locals() and not websocket_task.done():
                 websocket_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await websocket_task
-                except asyncio.CancelledError:
-                    pass
 
             # Close WebSocket connection
             if "wss" in locals():
