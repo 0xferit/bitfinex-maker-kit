@@ -82,36 +82,19 @@ def update_order(
     delta: float | None = None,
     use_cancel_recreate: bool = False,
 ) -> tuple[bool, Any]:
-    """
-    Update an existing order atomically using WebSocket (default) or cancel-and-recreate.
+    """Delegate updates through TradingService to keep a single update surface."""
+    from ..services.container import get_container
 
-    REFACTORED: Now uses dependency injection for better testability.
+    container = get_container()
+    service = container.create_trading_service()
+    # Convert primitives to domain objects in service layer; keep this facade minimal
+    from ..domain.amount import Amount
+    from ..domain.order_id import OrderId
+    from ..domain.price import Price
 
-    Args:
-        order_id: ID of the order to update
-        price: New price for the order
-        amount: New absolute amount for the order
-        delta: Amount to add/subtract from current amount (alternative to amount)
-        use_cancel_recreate: If True, use riskier cancel-and-recreate method
+    order_id_obj = OrderId(order_id)
+    price_obj = Price(price) if price is not None else None
+    amount_obj = Amount(amount) if amount is not None else None
+    delta_obj = Amount(delta) if delta is not None else None
 
-    Returns:
-        Tuple of (success: bool, result: str or response)
-
-    Raises:
-        ValidationError: If parameters are invalid
-        OrderSubmissionError: If order update fails
-    """
-    try:
-        # Get client through centralized factory
-        client = get_client()
-
-        # Update order through wrapper (WebSocket by default, cancel-recreate if requested)
-        result = client.update_order(order_id, price, amount, delta, use_cancel_recreate)
-        return True, result
-    except ValueError as e:
-        raise ValidationError(str(e)) from e
-    except Exception as e:
-        # Re-raise OrderSubmissionError as-is, wrap others
-        if isinstance(e, OrderSubmissionError):
-            raise
-        return False, str(e)
+    return service.update_order(order_id_obj, price_obj, amount_obj, delta_obj, use_cancel_recreate)

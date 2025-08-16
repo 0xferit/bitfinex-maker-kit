@@ -8,12 +8,12 @@ try/except pattern found throughout the codebase.
 from collections.abc import Callable
 from typing import Any
 
-from ..bitfinex_client import BitfinexClientWrapper
+from ..core.types import TradingClient
 from ..services.container import get_container
 from .auth import create_client
 
 
-def get_client() -> BitfinexClientWrapper:
+def get_client() -> TradingClient:
     """
     Get a Bitfinex client using dependency injection with fallback.
 
@@ -22,7 +22,7 @@ def get_client() -> BitfinexClientWrapper:
     duplication of this pattern across 9+ files in the codebase.
 
     Returns:
-        BitfinexClientWrapper: Configured client instance
+        TradingClient: Configured client instance
 
     Raises:
         SystemExit: If credentials are not available (from legacy fallback)
@@ -33,11 +33,11 @@ def get_client() -> BitfinexClientWrapper:
         return container.create_bitfinex_client()
     except Exception:
         # Fall back to legacy method for backward compatibility
-        # Type ignore because legacy create_client returns Any but we know it's BitfinexClientWrapper
+        # Type ignore because legacy create_client returns Any but we know it's BitfinexAPIClient
         return create_client()  # type: ignore[no-any-return]
 
 
-def get_client_safe() -> BitfinexClientWrapper | None:
+def get_client_safe() -> TradingClient | None:
     """
     Get a Bitfinex client safely without raising SystemExit.
 
@@ -46,7 +46,7 @@ def get_client_safe() -> BitfinexClientWrapper | None:
     handle missing credentials.
 
     Returns:
-        BitfinexClientWrapper or None: Client instance or None if creation fails
+        BitfinexAPIClient or None: Client instance or None if creation fails
     """
     try:
         return get_client()

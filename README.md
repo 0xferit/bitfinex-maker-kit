@@ -175,9 +175,10 @@ maker-kit cancel --symbol tBTCUSD --side buy
 maker-kit cancel --all --symbol tBTCUSD
 ```
 
-#### 🧩 **Strategies Layer** (`strategies/`, `update_strategies/`)
+#### 🧩 **Strategies Layer** (`strategies/`)
 - **Order Generation**: Flexible order generation strategies
-- **Update Strategies**: Multiple approaches (WebSocket, cancel-recreate, batch)
+  
+Update strategies are handled directly by the API client (atomic update if available) or cancel-recreate fallback.
 - **Strategy Factory**: Dynamic strategy selection based on market conditions
 
 #### 🌐 **WebSocket Layer** (`websocket/`)
@@ -251,7 +252,6 @@ pytest -m benchmark     # Performance benchmarks
 
 # Run specific architectural tests
 pytest tests/test_post_only_enforcement.py     # Safety validation
-pytest tests/test_wrapper_architecture.py      # Architecture validation
 pytest tests/test_python_version_requirement.py # Version compliance
 ```
 
@@ -439,7 +439,7 @@ bitfinex_maker_kit/
 │   └── [individual_commands].py    # Main CLI commands
 ├── core/                    # Core business logic
 │   ├── api_client.py        # Clean Bitfinex API wrapper
-│   ├── order_update_service.py    # Order update orchestration
+│   ├── order_update_service.py    # Deprecated shim; use TradingService.update_order
 │   ├── order_manager.py     # Order lifecycle management
 │   └── order_validator.py   # Multi-layer validation
 ├── domain/                  # Domain objects and business rules
@@ -454,9 +454,7 @@ bitfinex_maker_kit/
 │   └── performance_monitor.py # Real-time metrics collection
 ├── strategies/              # Trading strategy implementations
 │   └── order_generator.py   # Flexible order generation
-├── update_strategies/       # Order update approaches
-│   ├── base.py              # Update strategy interface
-│   ├── websocket_strategy.py    # Real-time WebSocket updates
+├── update_strategies/       # (deprecated)
 │   └── cancel_recreate_strategy.py # Cancel-recreate fallback
 ├── websocket/               # WebSocket integration
 │   ├── connection_manager.py    # Connection lifecycle

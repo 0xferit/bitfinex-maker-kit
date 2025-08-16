@@ -13,7 +13,7 @@ Provides a high-level interface for all trading operations with maximum safety.
 import logging
 from typing import Any
 
-from ..bitfinex_client import BitfinexClientWrapper
+from ..core.types import TradingClient
 from ..domain.amount import Amount
 from ..domain.order_id import OrderId
 from ..domain.price import Price
@@ -31,19 +31,19 @@ class TradingService:
     maintaining all safety guarantees and POST_ONLY enforcement.
     """
 
-    def __init__(self, client: BitfinexClientWrapper, config: dict[str, Any]):
+    def __init__(self, client: TradingClient, config: dict[str, Any]):
         """
         Initialize trading service.
 
         Args:
-            client: Configured Bitfinex client wrapper
+            client: Configured Bitfinex client
             config: Application configuration
         """
         self.client = client
         self.config = config
         logger.info("Trading service initialized")
 
-    def get_client(self) -> BitfinexClientWrapper:
+    def get_client(self) -> TradingClient:
         """Get the underlying Bitfinex client."""
         return self.client
 
@@ -235,6 +235,7 @@ class TradingService:
 
             # Use client's update method
             order_id_int = order_id.to_int()
+            # Bypass any local caches by delegating directly to the client API
             result = self.client.update_order(
                 order_id=order_id_int,
                 price=price_float,

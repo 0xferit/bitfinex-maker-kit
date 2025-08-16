@@ -26,7 +26,7 @@ class OrderFetcher:
         Initialize with a client instance.
 
         Args:
-            client: BitfinexClientWrapper instance
+            client: BitfinexAPIClient-compatible instance
         """
         self.client = client
         self._cached_orders = None

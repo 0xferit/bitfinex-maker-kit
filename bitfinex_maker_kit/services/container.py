@@ -8,7 +8,8 @@ replacing scattered create_client() calls with proper dependency injection.
 import logging
 from typing import Any, TypeVar
 
-from ..bitfinex_client import BitfinexClientWrapper, create_wrapper_client
+from ..core.api_client import BitfinexAPIClient
+from ..core.types import TradingClient
 from ..utilities.auth import get_credentials
 from .trading_service import TradingService
 
@@ -51,18 +52,18 @@ class ServiceContainer:
         """Get a singleton instance if registered."""
         return self._singletons.get(service_type)
 
-    def create_bitfinex_client(self) -> BitfinexClientWrapper:
+    def create_bitfinex_client(self) -> BitfinexAPIClient:
         """
         Create a Bitfinex API client with proper configuration.
 
         Returns:
-            Configured BitfinexClientWrapper instance
+            Configured BitfinexAPIClient instance
 
         Raises:
             ValueError: If credentials are not available
         """
         # Check if we have a singleton
-        singleton = self.get_singleton(BitfinexClientWrapper)
+        singleton = self.get_singleton(BitfinexAPIClient)
         if singleton:
             return singleton
 
@@ -72,8 +73,8 @@ class ServiceContainer:
             if not api_key or not api_secret:
                 raise ValueError("Bitfinex API credentials not found in environment")
 
-            # Create client with wrapper
-            client = create_wrapper_client(api_key, api_secret)
+            # Create client
+            client = BitfinexAPIClient(api_key, api_secret)
 
             logger.info("Created Bitfinex client successfully")
             return client
@@ -96,7 +97,7 @@ class ServiceContainer:
 
         try:
             # Create dependencies
-            client = self.create_bitfinex_client()
+            client: TradingClient = self.create_bitfinex_client()
             config = self.get_config()
 
             # Create trading service
@@ -208,7 +209,7 @@ class ServiceContainer:
         """Clean up resources and close connections."""
         try:
             # Close any WebSocket connections
-            client = self.get_singleton(BitfinexClientWrapper)
+            client = self.get_singleton(BitfinexAPIClient)
             if client and hasattr(client, "wss"):
                 # Note: Actual cleanup would need async context
                 pass

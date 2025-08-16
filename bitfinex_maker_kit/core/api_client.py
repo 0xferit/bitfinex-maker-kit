@@ -1,8 +1,8 @@
 """
 API client for Bitfinex.
 
-The bitfinex-api-py-postonly library automatically enforces POST_ONLY orders
-at the library level, preventing market taking and ensuring maker-only execution.
+POST_ONLY is explicitly enforced by passing the appropriate flags at the REST
+boundary to ensure maker-only execution and to prevent market taking.
 """
 
 from typing import Any
