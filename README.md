@@ -32,7 +32,7 @@ A professional, production-ready command-line interface for automated trading an
 
 ### 🚀 Production Ready
 - **Modular Commands**: Extensible command system with core abstractions
-- **Performance Monitoring**: Real-time metrics and profiling tools
+- **Performance Monitoring**: Real-time metrics and profiling tools (API response time, error rate, CPU, memory)
 - **Configuration Management**: Environment-aware configuration system
 - **Quality Tooling**: Streamlined workflow with Ruff, MyPy, Bandit, and pytest
 
@@ -295,9 +295,8 @@ bandit -r bitfinex_maker_kit/  # Security scan
 
 #### **Performance Monitor Service** (`services/performance_monitor.py`)
 - **Real-Time Metrics**: P50, P95, P99 percentiles for API operations
-- **Cache Analytics**: Hit ratios, miss patterns, namespace efficiency
-- **Memory Profiling**: Leak detection with heap snapshots
 - **Error Tracking**: Success/failure rates with categorization
+- **Resource Monitoring**: CPU and memory tracking
 
 #### **Profiler Utilities** (`utilities/profiler.py`)
 - **Execution Profiling**: Function-level performance analysis
@@ -308,7 +307,7 @@ bandit -r bitfinex_maker_kit/  # Security scan
 #### **Performance Dashboard** (`utilities/performance_dashboard.py`)
 - **Real-Time Visualization**: Live metrics display
 - **Historical Analysis**: Performance trend tracking
-- **Alert System**: Automated threshold-based notifications
+- **Alert System**: Automated threshold-based notifications (API time, errors, CPU, memory)
 - **Export Capabilities**: JSON, CSV data export
 
 #### **Market Data Policy**
@@ -323,9 +322,8 @@ maker-kit market-make --enable-monitoring
 # View performance metrics (via dashboard integration)
 # Dashboard accessible through market-make UI console
 
-# Load testing and benchmarks
-pytest tests/performance/ --benchmark-json=results.json
-pytest tests/load/ -v  # Stress testing
+# Load and stress testing
+pytest tests/load/ -v
 ```
 
 ## 🔒 Security Features
@@ -375,20 +373,12 @@ services:
     restart: unless-stopped
 ```
 
-## 📈 Performance Benchmarks
+## 📈 Robustness Metrics
 
-### Typical Performance Metrics
-- **Order Placement**: 100+ orders/second
-- **API Response Time**: <50ms P95
-- **Cache Hit Ratio**: >90%
-- **Memory Usage**: <100MB steady state
-- **Error Rate**: <0.1% under normal conditions
-
-### Load Testing Results
-- **Constant Load**: 1000+ operations sustained
-- **Burst Load**: 5000+ operations peak
-- **Stress Test**: 99%+ uptime under extreme load
-- **Memory Efficiency**: No memory leaks detected
+- **API Response Time**: P95/P99 latency
+- **Error Rate**: Success/failure ratio
+- **CPU Usage**: Process CPU percent
+- **Memory Usage**: RSS/MB
 
 ## 🤝 Contributing
 

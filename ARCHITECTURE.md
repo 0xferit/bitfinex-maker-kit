@@ -238,7 +238,8 @@ Validation Layer
 2. **POST_ONLY**: Explicitly enforced at API boundary
 3. **No Market Orders**: Rejected at client level
 4. **Validation**: Multi-layer input validation
-5. **Error Handling**: Comprehensive error messages
+5. **Robustness Metrics**: Tracked continuously (API response time, error rate, CPU, memory)
+6. **Error Handling**: Comprehensive error messages
 
 ## Technology Stack
 
