@@ -21,7 +21,6 @@ from bitfinex_maker_kit.domain.price import Price
 
 # Import project modules
 from bitfinex_maker_kit.domain.symbol import Symbol
-from bitfinex_maker_kit.services.cache_service import CacheService, create_cache_service
 from bitfinex_maker_kit.services.container import ServiceContainer, get_container
 from bitfinex_maker_kit.services.performance_monitor import (
     PerformanceMonitor,
@@ -37,12 +36,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: mark test as integration test (slower, requires setup)"
     )
-    config.addinivalue_line("markers", "performance: mark test as performance test (benchmarking)")
     config.addinivalue_line("markers", "load: mark test as load test (stress testing)")
     config.addinivalue_line("markers", "slow: mark test as slow running")
     config.addinivalue_line("markers", "api: mark test as requiring API access")
     config.addinivalue_line("markers", "websocket: mark test as requiring WebSocket functionality")
-    config.addinivalue_line("markers", "cache: mark test as cache-related")
+    # cache marker removed per no-cache policy
     config.addinivalue_line("markers", "async_test: mark test as async test")
     config.addinivalue_line(
         "markers", "paper_trading: mark test as requiring paper trading credentials"
@@ -277,12 +275,7 @@ def paper_trading_available(paper_trading_config) -> bool:
     )
 
 
-@pytest.fixture
-async def cache_service() -> AsyncGenerator[CacheService, None]:
-    """Create cache service for testing."""
-    service = create_cache_service(max_size=100, default_ttl=10.0)
-    yield service
-    await service.cleanup()
+# cache_service fixture removed per no-cache policy
 
 
 @pytest.fixture
@@ -421,17 +414,7 @@ def order_scenarios() -> dict[str, dict[str, Any]]:
     }
 
 
-# Performance test fixtures
-@pytest.fixture
-def performance_thresholds() -> dict[str, float]:
-    """Performance test thresholds."""
-    return {
-        "api_response_time_ms": 1000.0,
-        "cache_hit_ratio": 0.8,
-        "memory_usage_mb": 500.0,
-        "cpu_usage_pct": 50.0,
-        "order_processing_time_ms": 100.0,
-    }
+# Performance fixtures removed per live-data, no-performance policy
 
 
 @pytest.fixture
@@ -517,17 +500,7 @@ def api_error_scenarios() -> dict[str, Exception]:
 
 
 # Utility functions for tests
-@pytest.fixture
-def assert_performance():
-    """Performance assertion helper."""
-
-    def _assert_performance(operation_time: float, threshold: float, operation_name: str):
-        """Assert operation performance meets threshold."""
-        assert operation_time <= threshold, (
-            f"{operation_name} took {operation_time:.3f}s, exceeding threshold of {threshold:.3f}s"
-        )
-
-    return _assert_performance
+# assert_performance helper removed per policy
 
 
 @pytest.fixture
@@ -561,10 +534,7 @@ def isolate_tests():
 
 
 # Parametrized fixtures for comprehensive testing
-@pytest.fixture(params=["memory", "redis"])
-def cache_backend_type(request):
-    """Parametrized cache backend types."""
-    return request.param
+# cache_backend_type removed per no-cache policy
 
 
 @pytest.fixture(params=[1, 5, 10, 50])
