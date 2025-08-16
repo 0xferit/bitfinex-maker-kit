@@ -7,7 +7,6 @@ trading services, cache services, and monitoring components.
 
 import asyncio
 import time
-from collections.abc import Callable
 from typing import Any
 from unittest.mock import Mock
 
@@ -378,156 +377,6 @@ class MockTradingService:
         }
 
 
-class MockCacheService:
-    """
-    Mock cache service for testing.
-
-    Provides in-memory caching behavior without external dependencies,
-    allowing for cache-related testing scenarios.
-    """
-
-    def __init__(self, max_size: int = 1000, default_ttl: float = 30.0):
-        """
-        Initialize mock cache service.
-
-        Args:
-            max_size: Maximum cache size
-            default_ttl: Default TTL in seconds
-        """
-        self.max_size = max_size
-        self.default_ttl = default_ttl
-
-        # Cache storage
-        self.cache = {}  # namespace:key -> {'value': value, 'expires': timestamp}
-
-        # Statistics
-        self.hits = 0
-        self.misses = 0
-        self.sets = 0
-        self.deletes = 0
-        self.evictions = 0
-
-        # Operation tracking
-        self.operations = []
-
-    def _make_key(self, namespace: str, key: str) -> str:
-        """Create namespaced cache key."""
-        return f"{namespace}:{key}"
-
-    def _is_expired(self, cache_entry: dict[str, Any]) -> bool:
-        """Check if cache entry is expired."""
-        return time.time() > cache_entry["expires"]
-
-    def _record_operation(self, operation: str, **kwargs):
-        """Record cache operation."""
-        self.operations.append({"operation": operation, "timestamp": time.time(), "kwargs": kwargs})
-
-    async def get(self, namespace: str, key: str) -> Any:
-        """Get value from cache."""
-        cache_key = self._make_key(namespace, key)
-        self._record_operation("get", namespace=namespace, key=key)
-
-        if cache_key in self.cache:
-            entry = self.cache[cache_key]
-
-            if self._is_expired(entry):
-                del self.cache[cache_key]
-                self.misses += 1
-                return None
-
-            self.hits += 1
-            return entry["value"]
-
-        self.misses += 1
-        return None
-
-    async def set(self, namespace: str, key: str, value: Any, ttl: float | None = None) -> None:
-        """Set value in cache."""
-        cache_key = self._make_key(namespace, key)
-        cache_ttl = ttl if ttl is not None else self.default_ttl
-        expires = time.time() + cache_ttl
-
-        self._record_operation("set", namespace=namespace, key=key, ttl=cache_ttl)
-
-        # Evict if at capacity
-        while len(self.cache) >= self.max_size and cache_key not in self.cache:
-            self._evict_lru()
-            if len(self.cache) == 0:  # Safety check to prevent infinite loop
-                break
-
-        self.cache[cache_key] = {"value": value, "expires": expires, "accessed": time.time()}
-
-        self.sets += 1
-
-    async def delete(self, namespace: str, key: str) -> bool:
-        """Delete value from cache."""
-        cache_key = self._make_key(namespace, key)
-        self._record_operation("delete", namespace=namespace, key=key)
-
-        if cache_key in self.cache:
-            del self.cache[cache_key]
-            self.deletes += 1
-            return True
-
-        return False
-
-    async def get_or_set(
-        self, namespace: str, key: str, fetch_func: Callable, ttl: float | None = None
-    ) -> Any:
-        """Get value from cache or fetch and cache if not found."""
-        cache_key = self._make_key(namespace, key)
-
-        # Check if key exists in cache (not just if value is not None)
-        if cache_key in self.cache:
-            entry = self.cache[cache_key]
-            if not self._is_expired(entry):
-                self.hits += 1
-                return entry["value"]  # Return actual cached value, even if None
-            else:
-                del self.cache[cache_key]
-
-        # Key not found or expired, fetch value
-        self.misses += 1
-        if asyncio.iscoroutinefunction(fetch_func):
-            value = await fetch_func()
-        else:
-            value = fetch_func()
-
-        await self.set(namespace, key, value, ttl)
-        return value
-
-    def _evict_lru(self):
-        """Evict least recently used entry."""
-        if not self.cache:
-            return
-
-        lru_key = min(self.cache.keys(), key=lambda k: self.cache[k]["accessed"])
-
-        del self.cache[lru_key]
-        self.evictions += 1
-
-    async def cleanup(self):
-        """Clean up cache service."""
-        self.cache.clear()
-        self._record_operation("cleanup")
-
-    def get_stats(self) -> dict[str, Any]:
-        """Get cache statistics."""
-        total_requests = self.hits + self.misses
-        hit_ratio = self.hits / total_requests if total_requests > 0 else 0.0
-
-        return {
-            "hits": self.hits,
-            "misses": self.misses,
-            "sets": self.sets,
-            "deletes": self.deletes,
-            "evictions": self.evictions,
-            "hit_ratio": hit_ratio,
-            "size": len(self.cache),
-            "max_size": self.max_size,
-        }
-
-
 class MockPerformanceMonitor:
     """
     Mock performance monitor for testing.
@@ -687,16 +536,9 @@ def create_mock_trading_service(scenario: str = "normal") -> MockTradingService:
     return MockTradingService(**config)
 
 
-def create_mock_cache_service(scenario: str = "normal") -> MockCacheService:
-    """Create mock cache service with predefined scenario."""
-    scenarios = {
-        "normal": {"max_size": 1000, "default_ttl": 30.0},
-        "small": {"max_size": 10, "default_ttl": 5.0},
-        "large": {"max_size": 10000, "default_ttl": 300.0},
-    }
-
-    config = scenarios.get(scenario, scenarios["normal"])
-    return MockCacheService(**config)
+def create_mock_cache_service(*_args, **_kwargs):
+    """Deprecated: cache service removed by policy. Returns a no-op stub (None)."""
+    return None
 
 
 def create_mock_performance_monitor(scenario: str = "normal") -> MockPerformanceMonitor:
