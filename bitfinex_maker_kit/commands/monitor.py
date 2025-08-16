@@ -15,7 +15,8 @@ from collections import deque
 from datetime import datetime
 from typing import Any
 
-from ..bitfinex_client import BitfinexClientWrapper
+from .. import __version__
+from ..core.api_client import BitfinexAPIClient
 from ..utilities.auth import get_credentials
 from ..utilities.constants import DEFAULT_SYMBOL
 
@@ -93,7 +94,7 @@ class MonitorDisplay:
         self.events_log: deque[str] = deque(maxlen=max(15, available_height))
 
         # Store client reference for order fetching
-        self.client: BitfinexClientWrapper | None = None
+        self.client: BitfinexAPIClient | None = None
         self.connection_stats = {
             "trades_channel": False,
             "book_channel": False,
@@ -733,7 +734,7 @@ class MonitorDisplay:
         status = "♥ Up-to-date" if self.connection_stats["authenticated"] else "⚠ Disconnected"
         market_status = "Market: Active" if self.last_price > 0 else "Market: No Data"
 
-        footer = f"v4.2.44 │ {key_info} │ WebSocket: {ws_status} │ {status} │ {market_status} │ Uptime: {uptime} │ Press Ctrl+C to exit"
+        footer = f"v{__version__} │ {key_info} │ WebSocket: {ws_status} │ {status} │ {market_status} │ Uptime: {uptime} │ Press Ctrl+C to exit"
         return footer
 
     def render_full_display(self) -> None:
@@ -789,7 +790,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
     try:
         # Get credentials and create client
         api_key, api_secret = get_credentials()
-        client = BitfinexClientWrapper(api_key, api_secret)
+        client = BitfinexAPIClient(api_key, api_secret)
 
         # Initialize display with API key for footer display
         display = MonitorDisplay(symbol, levels, api_key)

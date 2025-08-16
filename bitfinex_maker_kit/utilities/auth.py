@@ -7,19 +7,22 @@ import os
 import sys
 from typing import Any
 
-from ..bitfinex_client import create_wrapper_client
+from ..core.api_client import BitfinexAPIClient
 
 # Module-level flag to track if we've shown the env file message
 _shown_env_message = False
 
 
 def get_credentials() -> tuple[str, str]:
-    """Get API credentials from environment variables or .env file"""
+    """Get API credentials from environment variables or .env file.
+
+    Supports both BITFINEX_* and BFX_* prefixes. Prefers BITFINEX_* if present.
+    """
     global _shown_env_message
 
-    # First try environment variables
-    api_key = os.getenv("BFX_API_KEY")
-    api_secret = os.getenv("BFX_API_SECRET")
+    # First try environment variables (prefer BITFINEX_*; fallback to BFX_*)
+    api_key = os.getenv("BITFINEX_API_KEY") or os.getenv("BFX_API_KEY")
+    api_secret = os.getenv("BITFINEX_API_SECRET") or os.getenv("BFX_API_SECRET")
 
     # If not found in env vars, try loading from .env file
     if not api_key or not api_secret:
@@ -42,9 +45,9 @@ def get_credentials() -> tuple[str, str]:
                             key = key.strip()
                             value = value.strip().strip('"').strip("'")
 
-                            if key == "BFX_API_KEY":
+                            if key in ("BITFINEX_API_KEY", "BFX_API_KEY"):
                                 api_key = value
-                            elif key == "BFX_API_SECRET":
+                            elif key in ("BITFINEX_API_SECRET", "BFX_API_SECRET"):
                                 api_secret = value
 
                 if api_key and api_secret and not _shown_env_message:
@@ -60,12 +63,16 @@ def get_credentials() -> tuple[str, str]:
         print("📋 Set credentials using one of these methods:")
         print()
         print("Method 1: Environment Variables")
+        print("  export BITFINEX_API_KEY='your_api_key_here'  # preferred")
+        print("  export BITFINEX_API_SECRET='your_api_secret_here'")
+        print("  # or legacy names:")
         print("  export BFX_API_KEY='your_api_key_here'")
         print("  export BFX_API_SECRET='your_api_secret_here'")
         print()
         print("Method 2: Create a .env file in the same directory as this script:")
-        print("  echo 'BFX_API_KEY=your_api_key_here' > .env")
-        print("  echo 'BFX_API_SECRET=your_api_secret_here' >> .env")
+        print("  echo 'BITFINEX_API_KEY=your_api_key_here' > .env")
+        print("  echo 'BITFINEX_API_SECRET=your_api_secret_here' >> .env")
+        print("  # legacy keys also supported: BFX_API_KEY / BFX_API_SECRET")
         print()
         print("📖 To get API keys:")
         print("  1. Log into Bitfinex")
@@ -79,13 +86,23 @@ def get_credentials() -> tuple[str, str]:
 
 def create_client() -> Any:
     """
-    Create and return a Bitfinex wrapper client with POST_ONLY enforcement.
+    Create and return a Bitfinex client.
 
     DEPRECATED: Use dependency injection through ServiceContainer instead.
     This function is maintained for backward compatibility during transition.
     """
     api_key, api_secret = get_credentials()
-    return create_wrapper_client(api_key, api_secret)
+    return BitfinexAPIClient(api_key, api_secret)
+
+
+def get_client() -> Any:
+    """Get authenticated Bitfinex client (alias for create_client)."""
+    return create_client()
+
+
+def create_wrapper_client(api_key: str, api_secret: str) -> Any:
+    """Create client with given credentials (kept for backward compatibility)."""
+    return BitfinexAPIClient(api_key, api_secret)
 
 
 def test_api_connection() -> bool:

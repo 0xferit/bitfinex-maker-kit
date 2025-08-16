@@ -43,7 +43,7 @@ fi
 
 # Type checking
 echo "🔎 Running type checks..."
-if mypy maker_kit/ --quiet; then
+if mypy bitfinex_maker_kit/ --quiet; then
     echo "✅ No type issues found"
 else
     echo "❌ Type checking failed. Check output above."
@@ -52,7 +52,7 @@ fi
 
 # Security scanning
 echo "🔒 Running security scan..."
-if bandit -r maker_kit/ --skip B101 --quiet --format json > /dev/null 2>&1; then
+if bandit -r bitfinex_maker_kit/ --skip B101 --quiet --format json > /dev/null 2>&1; then
     echo "✅ No security issues found"
 else
     echo "⚠️  Security scan found potential issues. Run 'make security' for details."

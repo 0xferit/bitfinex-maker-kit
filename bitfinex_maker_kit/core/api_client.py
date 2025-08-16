@@ -1,10 +1,8 @@
 """
-Pure API client for Bitfinex with POST_ONLY enforcement - TRADING SAFETY FIRST.
+API client for Bitfinex.
 
-SAFETY CRITICAL: This module architecturally enforces POST_ONLY orders to prevent
-market taking and ensure predictable execution. All orders are maker orders only.
-
-NEVER BYPASSES POST_ONLY FLAG - This is a fundamental safety mechanism.
+The bitfinex-api-py-postonly library automatically enforces POST_ONLY orders
+at the library level, preventing market taking and ensuring maker-only execution.
 """
 
 from typing import Any
@@ -16,13 +14,10 @@ from ..utilities.constants import POST_ONLY_FLAG, OrderSide, OrderSubmissionErro
 
 class BitfinexAPIClient:
     """
-    Focused API client that handles only API communication with POST_ONLY enforcement.
+    API client that handles Bitfinex communication.
 
-    This class is responsible solely for:
-    - Raw API communication
-    - POST_ONLY flag enforcement
-    - Basic parameter validation
-    - Error handling and retries
+    The underlying bitfinex-api-py-postonly library automatically
+    enforces POST_ONLY for all limit orders.
     """
 
     def __init__(self, api_key: str, api_secret: str) -> None:
@@ -65,13 +60,13 @@ class BitfinexAPIClient:
             )
 
         try:
-            # ONLY limit orders with POST_ONLY flag - ARCHITECTURALLY ENFORCED
+            # Explicitly enforce POST_ONLY via flags at the API boundary
             return self.client.rest.auth.submit_order(
                 type=OrderType.LIMIT.value,
                 symbol=symbol,
                 amount=bitfinex_amount,
                 price=price,
-                flags=POST_ONLY_FLAG,  # POST_ONLY flag - HARDCODED at API boundary
+                flags=POST_ONLY_FLAG,
             )
         except Exception as e:
             raise OrderSubmissionError(
@@ -140,6 +135,83 @@ class BitfinexAPIClient:
         except Exception as e:
             raise OrderSubmissionError(f"Failed to get trades for {symbol}: {e}") from e
 
+    def get_orderbook(self, symbol: str, precision: str = "P0") -> Any:
+        """Get order book data for symbol."""
+        if not symbol or not symbol.strip():
+            raise ValueError("Symbol cannot be empty")
+
+        try:
+            # bfxapi uses get_t_book for trading pairs
+            return self.client.rest.public.get_t_book(symbol, prec=precision)
+        except Exception as e:
+            raise OrderSubmissionError(f"Failed to get orderbook for {symbol}: {e}") from e
+
+    def update_order(
+        self,
+        order_id: int,
+        price: float | None = None,
+        amount: float | None = None,
+        delta: float | None = None,
+        use_cancel_recreate: bool = False,
+    ) -> Any:
+        """Update an order via REST API or fallback to cancel-recreate.
+
+        Note: bfxapi supports authenticated order update; parameters may be strings.
+        """
+        if order_id <= 0:
+            raise ValueError("order_id must be positive")
+
+        try:
+            if not use_cancel_recreate and hasattr(self.client.rest.auth, "update_order"):
+                kwargs: dict[str, Any] = {"id": order_id}
+                if price is not None:
+                    kwargs["price"] = price
+                if amount is not None:
+                    # Preserve side by adjusting sign only when full amount provided; delta handled below
+                    kwargs["amount"] = amount
+                if delta is not None and hasattr(self.client.rest.auth, "update_order_delta"):
+                    # If API supports delta updates, prefer it
+                    return self.client.rest.auth.update_order_delta(id=order_id, delta=delta)
+                return self.client.rest.auth.update_order(**kwargs)
+
+            # Fallback: cancel and recreate when atomic update not available
+            # Fetch existing order, cancel it, then submit a new one
+            current = None
+            try:
+                orders = self.get_orders()
+                current = next((o for o in orders if getattr(o, "id", None) == order_id), None)
+            except Exception:
+                current = None
+
+            # Cancel first
+            self.cancel_order(order_id)
+
+            if current is None:
+                raise OrderSubmissionError("Original order not found for cancel-recreate")
+
+            symbol = getattr(current, "symbol", None)
+            if not isinstance(symbol, str) or not symbol.strip():
+                raise OrderSubmissionError("Original order has no valid symbol")
+            current_amount = float(getattr(current, "amount", 0.0))
+            side = OrderSide.BUY.value if current_amount > 0 else OrderSide.SELL.value
+
+            new_amount = amount if amount is not None else abs(current_amount)
+            new_price = price if price is not None else float(getattr(current, "price", 0.0))
+
+            # Submit replacement order with enforced POST_ONLY
+            new_order = self.submit_order(
+                symbol=str(symbol), side=side, amount=new_amount, price=new_price
+            )
+
+            return {
+                "status": "SUCCESS",
+                "method": "cancel_recreate",
+                "original_order_id": order_id,
+                "new_order": new_order,
+            }
+        except Exception as e:
+            raise OrderSubmissionError(f"Failed to update order {order_id}: {e}") from e
+
     @property
     def wss(self) -> Any:
         """Access to WebSocket interface for real-time data."""
@@ -168,10 +240,10 @@ class BitfinexAPIClient:
         if amount <= 0:
             raise ValueError("Amount must be positive")
 
-        # ARCHITECTURAL ENFORCEMENT: Price is REQUIRED for POST_ONLY limit orders
+        # Price is required for limit orders
         if price is None:
             raise ValueError(
-                "Price is required. Market orders are not supported - only POST_ONLY limit orders."
+                "Price is required. Market orders are not supported - only limit orders."
             )
 
         if price <= 0:

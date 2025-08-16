@@ -426,8 +426,7 @@ tox
 ```
 bitfinex_maker_kit/
 ├── __init__.py              # Package entry point and exports
-├── cli.py                   # Main CLI interface using focused components
-├── bitfinex_client.py       # Legacy wrapper (delegating to core/)
+├── cli/                     # CLI interface (argument parsing and routing)
 ├── cli/                     # CLI-specific components
 │   ├── argument_parser.py   # Command-line argument parsing
 │   └── command_router.py    # Command routing logic
@@ -440,7 +439,7 @@ bitfinex_maker_kit/
 │   └── [individual_commands].py    # Main CLI commands
 ├── core/                    # Core business logic
 │   ├── api_client.py        # Clean Bitfinex API wrapper
-│   ├── trading_facade.py    # Unified trading interface
+│   ├── order_update_service.py    # Order update orchestration
 │   ├── order_manager.py     # Order lifecycle management
 │   └── order_validator.py   # Multi-layer validation
 ├── domain/                  # Domain objects and business rules

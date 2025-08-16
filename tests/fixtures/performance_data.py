@@ -1,8 +1,5 @@
 """
-Performance data fixtures for testing.
-
-Provides realistic performance scenarios and benchmarks
-for comprehensive performance testing and validation.
+Performance data fixtures (minimal). Performance tests have been removed.
 """
 
 import random
