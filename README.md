@@ -311,11 +311,9 @@ bandit -r bitfinex_maker_kit/  # Security scan
 - **Alert System**: Automated threshold-based notifications
 - **Export Capabilities**: JSON, CSV data export
 
-#### **Market Data Caching** (`utilities/market_data_cache.py`)
-- **Intelligent Caching**: 90%+ API call reduction
-- **Cache Warming**: Proactive data prefetching  
-- **Namespace Isolation**: Multi-symbol cache management
-- **TTL Management**: Automatic cache invalidation
+#### **Market Data Policy**
+- Live data only for trading decisions; no caching in trading paths
+- UI/monitoring may query public endpoints directly without persistence
 
 ### Using Performance Tools
 ```bash
@@ -450,7 +448,7 @@ bitfinex_maker_kit/
 ├── services/                # Service layer with dependency injection
 │   ├── container.py         # Dependency injection container
 │   ├── trading_service.py   # Core trading operations
-│   ├── cache_service.py     # Intelligent caching system
+│   ├── cache_service.py     # (removed) no caching in trading paths
 │   └── performance_monitor.py # Real-time metrics collection
 ├── strategies/              # Trading strategy implementations
 │   └── order_generator.py   # Flexible order generation

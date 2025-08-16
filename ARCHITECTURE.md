@@ -186,7 +186,7 @@ Commands → BitfinexAPIClient → bitfinex-api-py
 
 ### Utilities
 - **auth.py**: Credential management
-- **market_data.py**: Market data helpers
+- **market_data.py**: Market data helpers (reads fresh data only)
 - **formatters.py**: Output formatting
 - **constants.py**: Shared constants including POST_ONLY_FLAG (4096)
 
@@ -249,13 +249,10 @@ Validation Layer
 - **WebSocket**: Built into bitfinex-api-py
 - **Testing**: pytest, unittest
 
-## Future Considerations
+## Policy
 
-While the architecture is now simplified, potential enhancements could include:
-- Rate limiting at the client level
-- Request caching for read operations
-- Circuit breaker pattern for API failures
-- Metrics and observability hooks
-- Strategy pattern for different market making approaches
+- No caches in trading paths. All trading decisions use live data.
+- Simplicity first: fewer layers, explicit boundaries, structural typing.
+- Maker-only: explicit POST_ONLY flag at the API boundary.
 
-The current architecture prioritizes **simplicity**, **safety**, and **maintainability** while ensuring all orders are maker-only through explicit POST_ONLY flag enforcement.
+The architecture prioritizes clarity and maintainability with the minimum viable surface area.
