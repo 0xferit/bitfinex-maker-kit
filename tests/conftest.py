@@ -203,6 +203,7 @@ def mock_bitfinex_client():
     client.get_orderbook = Mock()
     client.get_trades = Mock()
     client.get_wallets = Mock()
+    client.get_orders = Mock(return_value=[])
     client.submit_order = Mock()
     client.cancel_order = Mock()
     client.get_orders = Mock()
@@ -585,10 +586,10 @@ def paper_trading_credentials():
     """Provide paper trading credentials for testing."""
     api_key = os.environ.get("BFX_API_PAPER_KEY")
     api_secret = os.environ.get("BFX_API_PAPER_SECRET")
-    
+
     if not api_key or not api_secret:
         pytest.skip("Paper trading credentials not available")
-    
+
     return {
         "api_key": api_key,
         "api_secret": api_secret,
@@ -607,17 +608,17 @@ def paper_trading_environment(paper_trading_credentials):
         "BITFINEX_API_SECRET": paper_trading_credentials["api_secret"],
         "MAKER_KIT_ENVIRONMENT": "TESTING",
     }
-    
+
     # Save old environment
     for key in new_env:
         old_env[key] = os.environ.get(key)
-    
+
     # Set new environment
     for key, value in new_env.items():
         os.environ[key] = value
-    
+
     yield paper_trading_credentials
-    
+
     # Restore old environment
     for key, old_value in old_env.items():
         if old_value is None:
@@ -632,7 +633,7 @@ def command_test_environment():
     """Configure environment for command testing with safety measures."""
     return {
         "dry_run": True,  # Always use dry run in tests
-        "timeout": 30,    # 30 second timeout for commands
+        "timeout": 30,  # 30 second timeout for commands
         "symbol": "tTESTBTCTESTUSD",  # Safe test symbol
         "small_amount": 0.001,  # Small test amounts
     }
@@ -644,9 +645,9 @@ def ensure_test_isolation():
     """Ensure each test runs in isolation with proper cleanup."""
     # Pre-test setup
     original_env = dict(os.environ)
-    
+
     yield
-    
+
     # Post-test cleanup
     # Restore original environment
     os.environ.clear()
@@ -658,36 +659,38 @@ def ensure_test_isolation():
 def test_performance_monitor():
     """Monitor test performance to ensure tests complete quickly."""
     import time
+
     start_time = time.time()
-    
+
     yield
-    
+
     end_time = time.time()
     duration = end_time - start_time
-    
+
     # Log slow tests (over 5 seconds)
     if duration > 5.0:
         print(f"⚠️  Slow test detected: {duration:.2f}s")
 
 
 # Safety enforcement fixture
-@pytest.fixture(autouse=True) 
+@pytest.fixture(autouse=True)
 def enforce_test_safety():
     """Enforce safety measures in all tests."""
     # Ensure we're not using production credentials accidentally
-    prod_indicators = ["api.bitfinex.com", "live", "production", "main"]
-    
     api_key = os.environ.get("BITFINEX_API_KEY", "")
     api_secret = os.environ.get("BITFINEX_API_SECRET", "")
-    
+
     # Block if credentials look like production
     if any(indicator in api_key.lower() for indicator in ["live", "prod"]):
         pytest.fail("Production-like API key detected in tests!")
-    
+
     # Ensure paper trading environment
-    if api_key and api_secret and "paper" not in api_key.lower():
-        # Only allow if explicitly testing or using mock credentials
-        if not (api_key.startswith("mock_") or os.environ.get("ALLOW_LIVE_TESTING")):
-            pytest.fail("Live API credentials detected - use paper trading for tests!")
-    
+    if (
+        api_key
+        and api_secret
+        and "paper" not in api_key.lower()
+        and not (api_key.startswith("mock_") or os.environ.get("ALLOW_LIVE_TESTING"))
+    ):
+        pytest.fail("Live API credentials detected - use paper trading for tests!")
+
     yield

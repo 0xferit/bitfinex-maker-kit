@@ -17,9 +17,19 @@ def get_credentials() -> tuple[str, str]:
     """Get API credentials from environment variables or .env file"""
     global _shown_env_message
 
-    # First try environment variables
-    api_key = os.getenv("BFX_API_KEY")
-    api_secret = os.getenv("BFX_API_SECRET")
+    # First try environment variables (support both legacy and BITFINEX_* names)
+    api_key = (
+        os.getenv("BFX_API_KEY")
+        or os.getenv("BITFINEX_API_KEY")
+        or os.getenv("BFX_API_PAPER_KEY")
+        or os.getenv("BITFINEX_API_PAPER_KEY")
+    )
+    api_secret = (
+        os.getenv("BFX_API_SECRET")
+        or os.getenv("BITFINEX_API_SECRET")
+        or os.getenv("BFX_API_PAPER_SECRET")
+        or os.getenv("BITFINEX_API_PAPER_SECRET")
+    )
 
     # If not found in env vars, try loading from .env file
     if not api_key or not api_secret:
@@ -42,9 +52,19 @@ def get_credentials() -> tuple[str, str]:
                             key = key.strip()
                             value = value.strip().strip('"').strip("'")
 
-                            if key == "BFX_API_KEY":
+                            if key in {
+                                "BFX_API_KEY",
+                                "BITFINEX_API_KEY",
+                                "BFX_API_PAPER_KEY",
+                                "BITFINEX_API_PAPER_KEY",
+                            }:
                                 api_key = value
-                            elif key == "BFX_API_SECRET":
+                            elif key in {
+                                "BFX_API_SECRET",
+                                "BITFINEX_API_SECRET",
+                                "BFX_API_PAPER_SECRET",
+                                "BITFINEX_API_PAPER_SECRET",
+                            }:
                                 api_secret = value
 
                 if api_key and api_secret and not _shown_env_message:
