@@ -50,6 +50,19 @@ def submit_order(
         OrderSubmissionError: If order submission fails
     """
     try:
+        # Validate inputs before creating client to avoid credential exits in tests
+        if amount <= 0:
+            raise ValidationError("Amount must be positive")
+
+        # Validate side value
+        side_value = side.value if isinstance(side, OrderSide) else str(side).lower().strip()
+        if side_value not in {"buy", "sell"}:
+            raise ValidationError("Invalid order side. Must be 'buy' or 'sell'")
+
+        # Validate price only if provided (market orders handled by wrapper policy)
+        if price is not None and price <= 0:
+            raise ValidationError("Price must be positive for limit orders")
+
         # Get client through centralized factory
         client = get_client()
 
@@ -60,6 +73,9 @@ def submit_order(
     except Exception as e:
         # Re-raise OrderSubmissionError as-is, wrap others
         if isinstance(e, OrderSubmissionError):
+            raise
+        # Preserve validation errors
+        if isinstance(e, ValidationError):
             raise
         raise OrderSubmissionError(f"Order submission failed: {e}") from e
 
