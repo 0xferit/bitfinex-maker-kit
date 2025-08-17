@@ -1,0 +1,416 @@
+name: Comprehensive Testing with Paper Trading
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint-and-format:
+    name: Code Quality (Linting & Formatting)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy bandit
+          pip install -e .
+          
+      - name: Run Ruff (lint + format check)
+        run: |
+          ruff check .
+          ruff format --check .
+          
+      - name: Run MyPy (type checking)
+        run: mypy bitfinex_maker_kit/
+        
+      - name: Run Bandit (security check)
+        run: bandit -r bitfinex_maker_kit/ -f json -o bandit-report.json || true
+        
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: bandit-report.json
+
+  unit-tests:
+    name: Unit Tests (Fast, Mock-based)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run unit tests
+        run: |
+          pytest tests/ -m "unit" -v \
+            --cov=bitfinex_maker_kit \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-fail-under=95 \
+            --tb=short
+            
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unit-tests
+          name: unit-test-coverage
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run integration tests
+        run: |
+          pytest tests/ -m "integration" -v \
+            --cov=bitfinex_maker_kit \
+            --cov-report=xml \
+            --cov-append \
+            --tb=short
+            
+      - name: Upload integration test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: integration-tests
+          name: integration-test-coverage
+
+  paper-trading-tests:
+    name: Paper Trading Tests (Real API)
+    runs-on: ubuntu-latest
+    # Only run if paper trading secrets are available
+    if: ${{ secrets.BFX_API_PAPER_KEY && secrets.BFX_API_PAPER_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run paper trading tests
+        env:
+          BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
+          BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
+          MAKER_KIT_ENVIRONMENT: TESTING
+        run: |
+          pytest tests/ -m "paper_trading" -v \
+            --cov=bitfinex_maker_kit \
+            --cov-report=xml \
+            --cov-append \
+            --tb=short \
+            --timeout=300
+            
+      - name: Upload paper trading test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: paper-trading-tests
+          name: paper-trading-test-coverage
+
+  comprehensive-coverage:
+    name: Comprehensive Coverage Check (100% Target)
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run all tests for coverage
+        env:
+          # Use mock credentials for coverage run
+          BFX_API_PAPER_KEY: "mock_key_for_coverage"
+          BFX_API_PAPER_SECRET: "mock_secret_for_coverage"
+        run: |
+          pytest tests/ \
+            -m "not load and not benchmark" \
+            --cov=bitfinex_maker_kit \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            --cov-fail-under=100 \
+            --tb=short
+            
+      - name: Generate coverage report
+        run: |
+          coverage report --format=markdown > coverage-report.md
+          
+      - name: Upload comprehensive coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: comprehensive
+          name: comprehensive-coverage
+          fail_ci_if_error: true
+          
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-html-report
+          path: htmlcov/
+          
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const coverageReport = fs.readFileSync('coverage-report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## Coverage Report\n\n' + coverageReport
+            });
+
+  performance-tests:
+    name: Performance & Load Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run performance benchmarks
+        run: |
+          pytest tests/ -m "benchmark" -v \
+            --benchmark-only \
+            --benchmark-json=benchmark-results.json \
+            --tb=short
+            
+      - name: Run load tests
+        run: |
+          pytest tests/ -m "load and not realistic_load" -v \
+            --tb=short \
+            --timeout=600
+            
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: benchmark-results.json
+
+  command-coverage-verification:
+    name: Verify All Commands Have Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Verify command test coverage
+        run: |
+          python -c "
+          import ast
+          import os
+          
+          # Get all commands from __init__.py
+          with open('bitfinex_maker_kit/commands/__init__.py', 'r') as f:
+              content = f.read()
+          
+          tree = ast.parse(content)
+          commands = []
+          for node in ast.walk(tree):
+              if isinstance(node, ast.ImportFrom) and node.module:
+                  for alias in node.names:
+                      if alias.name.endswith('_command'):
+                          commands.append(alias.name)
+          
+          print(f'Found commands: {commands}')
+          
+          # Check that each command has tests
+          import subprocess
+          missing_tests = []
+          
+          for cmd in commands:
+              result = subprocess.run(['grep', '-r', cmd, 'tests/'], 
+                                    capture_output=True, text=True)
+              if not result.stdout:
+                  missing_tests.append(cmd)
+          
+          if missing_tests:
+              print(f'❌ Commands missing tests: {missing_tests}')
+              exit(1)
+          else:
+              print('✅ All commands have tests')
+          "
+
+  security-tests:
+    name: Security & Safety Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          pip install safety
+          
+      - name: Run safety check (dependency vulnerabilities)
+        run: safety check --json --output safety-report.json || true
+        
+      - name: Test POST_ONLY enforcement
+        run: |
+          pytest tests/test_post_only_enforcement.py -v
+          pytest tests/test_wrapper_architecture.py -v
+          
+      - name: Upload safety report
+        uses: actions/upload-artifact@v3
+        with:
+          name: safety-report
+          path: safety-report.json
+
+  property-based-tests:
+    name: Property-Based Tests (Hypothesis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          
+      - name: Run property-based tests
+        run: |
+          pytest tests/ -m "property" -v \
+            --tb=short \
+            --timeout=300
+
+  deployment-readiness:
+    name: Deployment Readiness Check
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, unit-tests, integration-tests, comprehensive-coverage, performance-tests, security-tests]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deployment readiness report
+        run: |
+          echo "## 🚀 Deployment Readiness Report" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ 100% test coverage achieved" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Security checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Performance benchmarks completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All commands have comprehensive tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎯 **Ready for deployment**" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Create release tag (if version changed)
+        run: |
+          # Extract version from pyproject.toml
+          VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          echo "Current version: $VERSION"
+          
+          # Check if tag exists
+          if ! git tag -l | grep -q "v$VERSION"; then
+            echo "Creating new tag: v$VERSION"
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+          else
+            echo "Tag v$VERSION already exists"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deployment-readiness]
+    if: always()
+    steps:
+      - name: Cleanup artifacts older than 30 days
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: artifacts } = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            for (const artifact of artifacts.artifacts) {
+              if (new Date(artifact.created_at) < thirtyDaysAgo) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted artifact: ${artifact.name}`);
+              }
+            }

@@ -79,7 +79,7 @@ show_error_codes = true
 module = ["bitfinex.*"]
 ignore_missing_imports = true
 
-# Coverage - Test coverage reporting
+# Coverage - Test coverage reporting (100% TARGET)
 [tool.coverage.run]
 source = ["bitfinex_maker_kit"]
 omit = [
@@ -93,7 +93,7 @@ branch = true
 parallel = true
 
 [tool.coverage.report]
-fail_under = 10
+fail_under = 100  # Require 100% coverage for all commits
 show_missing = true
 skip_covered = false
 exclude_lines = [
@@ -106,7 +106,9 @@ exclude_lines = [
     "if 0:",
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod"
+    "@(abc\\.)?abstractmethod",
+    "# pragma: no cover",
+    "if TYPE_CHECKING:",
 ]
 
 [tool.coverage.html]
@@ -123,16 +125,17 @@ addopts = [
     "--cov=bitfinex_maker_kit",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=10",
+    "--cov-fail-under=100",  # Require 100% coverage
     "--strict-markers",
     "--tb=short"
 ]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "slow: Slow tests",
-    "benchmark: Performance benchmark tests",
-    "load: Load testing tests",
+    "unit: Unit tests - fast, isolated tests using mocks",
+    "integration: Integration tests - test component interactions", 
     "paper_trading: Tests requiring paper trading credentials",
+    "slow: Slow tests that take more than 1 second",
+    "benchmark: Performance benchmark tests",
+    "load: Load testing tests - stress testing",
+    "property: Property-based tests using Hypothesis",
     "realistic_load: Realistic load tests against real API"
 ]
