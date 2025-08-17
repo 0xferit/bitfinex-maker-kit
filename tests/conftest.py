@@ -680,17 +680,33 @@ def enforce_test_safety():
     api_key = os.environ.get("BITFINEX_API_KEY", "")
     api_secret = os.environ.get("BITFINEX_API_SECRET", "")
 
-    # Block if credentials look like production
-    if any(indicator in api_key.lower() for indicator in ["live", "prod"]):
-        pytest.fail("Production-like API key detected in tests!")
+    # Allow tests to run without credentials
+    if not api_key or not api_secret:
+        yield
+        return
 
-    # Ensure paper trading environment
-    if (
-        api_key
-        and api_secret
-        and "paper" not in api_key.lower()
-        and not (api_key.startswith("mock_") or os.environ.get("ALLOW_LIVE_TESTING"))
-    ):
-        pytest.fail("Live API credentials detected - use paper trading for tests!")
+    # Allow explicit mock keys
+    if api_key.startswith("mock_"):
+        yield
+        return
+
+    # Exact-match paper key detection via known envs
+    paper_keys = {
+        k
+        for k in [
+            os.environ.get("BFX_API_PAPER_KEY"),
+            os.environ.get("BITFINEX_API_PAPER_KEY"),
+        ]
+        if k
+    }
+
+    # If BITFINEX_API_KEY exactly equals one of the configured paper keys, allow
+    if paper_keys and api_key in paper_keys:
+        yield
+        return
+
+    # Otherwise, treat as live credentials unless explicitly allowed
+    if not os.environ.get("ALLOW_LIVE_TESTING"):
+        pytest.fail("Live API credentials detected - use paper trading keys in tests!")
 
     yield
