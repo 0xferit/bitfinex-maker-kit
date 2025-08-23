@@ -145,13 +145,11 @@ markers = [
 branch = "main"
 version_toml = ["pyproject.toml:project.version"]
 version_variable = ["bitfinex_maker_kit/__init__.py:__version__"]
-version_pattern = ["CLAUDE.md:(?P<version>\\d+\\.\\d+\\.\\d+)"]
+version_pattern = ["CLAUDE.md:Version: (?P<version>\\d+\\.\\d+\\.\\d+)"]
 build_command = "python -m build"
 commit_parser = "conventional_commits"
 major_on_zero = false
 tag_format = "v{version}"
-upload_to_pypi = true
-upload_to_release = true
 dist_path = "dist/"
 remove_dist = false
 
@@ -159,6 +157,3 @@ remove_dist = false
 major_types = ["breaking"]
 minor_types = ["feat"]
 patch_types = ["fix", "perf", "refactor", "build", "chore"]
-
-[tool.semantic_release.publish]
-upload_to_vcs_release = true
