@@ -258,7 +258,7 @@ jobs:
     name: Load Tests
     runs-on: ubuntu-latest
     needs: [performance-tests]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     timeout-minutes: 30
     
     steps:
@@ -321,6 +321,4 @@ jobs:
       env:
         BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY || 'mock_paper_key' }}
         BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET || 'mock_paper_secret' }}
-        BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY || 'mock_paper_key' }}
-        BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET || 'mock_paper_secret' }}
         MAKER_KIT_ENVIRONMENT: TESTING
