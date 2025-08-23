@@ -199,15 +199,26 @@ Before releasing:
 
 ### Required GitHub Settings
 
-1. **Branch Protection Rules**
-   - `main`: Require PR reviews, status checks
-   - `develop`: Require status checks
+1. **Branch Protection Rules for `main`**
+   - Require pull request reviews before merging
+   - Require status checks to pass:
+     - `check-source-branch` (enforces develop/release only)
+     - Unit Tests
+     - Security Scan
+     - Build and Package
+   - Require branches to be up to date before merging
+   - Include administrators in restrictions
+   - Restrict who can push to main (only CI/CD)
 
-2. **Environments**
+2. **Branch Protection Rules for `develop`**
+   - Require status checks to pass
+   - Allow feature branches to merge
+
+3. **Environments**
    - `pypi`: Production PyPI deployment
    - `testpypi`: Test PyPI deployment (optional)
 
-3. **PyPI Trusted Publisher**
+4. **PyPI Trusted Publisher**
    - Configure at pypi.org/manage/project
    - Repository: `0xferit/bitfinex-maker-kit`
    - Workflow: `release.yml`
