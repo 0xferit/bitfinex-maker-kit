@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   check-source-branch:
@@ -11,41 +12,88 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Check PR is from develop or release branch
+    - name: Validate branch naming and Git Flow compliance
       env:
         SOURCE_BRANCH: ${{ github.head_ref }}
         BASE_BRANCH: ${{ github.base_ref }}
       run: |
         echo "PR from: $SOURCE_BRANCH to: $BASE_BRANCH"
         
-        # Validate base branch is main
-        if [[ "$BASE_BRANCH" != "main" ]]; then
-          echo "⚠️ Warning: Unexpected base branch: $BASE_BRANCH"
-          echo "This workflow only validates PRs to main branch"
-          exit 0
-        fi
+        # Rules for PRs to main branch
+        if [[ "$BASE_BRANCH" == "main" ]]; then
+          echo "Validating PR to main branch..."
+          
+          # Allow PRs from develop, release/*, or hotfix/* branches
+          # Hotfixes can go directly to main for critical production fixes
+          if [[ "$SOURCE_BRANCH" == "develop" ]] || \
+             [[ "$SOURCE_BRANCH" =~ ^release/.* ]] || \
+             [[ "$SOURCE_BRANCH" =~ ^hotfix/.* ]]; then
+            echo "✅ Valid PR: $SOURCE_BRANCH → main"
+            exit 0
+          else
+            echo "❌ Invalid PR: Only 'develop', 'release/*', or 'hotfix/*' branches can merge to main"
+            echo "Current branch: $SOURCE_BRANCH"
+            echo ""
+            echo "Please follow the Git Flow:"
+            echo "For normal features/fixes:"
+            echo "1. Create feature/*, fix/*, chore/*, refactor/*, etc. branch"
+            echo "2. Merge to develop first"
+            echo "3. Create a release from develop"
+            echo "4. Merge the release to main"
+            echo ""
+            echo "For critical production fixes:"
+            echo "1. Create hotfix/* branch from main"
+            echo "2. Merge directly to main"
+            echo "3. Back-merge to develop"
+            exit 1
+          fi
         
-        # Allow PRs from develop, release/*, or hotfix/* branches
-        # Hotfixes can go directly to main for critical production fixes
-        if [[ "$SOURCE_BRANCH" == "develop" ]] || \
-           [[ "$SOURCE_BRANCH" =~ ^release/.* ]] || \
-           [[ "$SOURCE_BRANCH" =~ ^hotfix/.* ]]; then
-          echo "✅ Valid PR: $SOURCE_BRANCH → main"
-          exit 0
+        # Rules for PRs to develop branch
+        elif [[ "$BASE_BRANCH" == "develop" ]]; then
+          echo "Validating PR to develop branch..."
+          
+          # Define allowed branch prefixes for conventional commits
+          # These align with semantic versioning and conventional commit standards
+          if [[ "$SOURCE_BRANCH" =~ ^(feature|feat|fix|chore|refactor|docs|test|perf|style|build|ci|revert)/.+ ]]; then
+            echo "✅ Valid PR: $SOURCE_BRANCH → develop"
+            echo "Branch follows conventional commit naming"
+            exit 0
+          elif [[ "$SOURCE_BRANCH" =~ ^hotfix/.* ]]; then
+            # Hotfixes can also be merged back to develop after main
+            echo "✅ Valid PR: $SOURCE_BRANCH → develop"
+            echo "Hotfix being back-merged to develop"
+            exit 0
+          elif [[ "$SOURCE_BRANCH" == "main" ]]; then
+            # Allow back-merges from main to develop
+            echo "✅ Valid PR: main → develop"
+            echo "Back-merge from main to keep develop in sync"
+            exit 0
+          else
+            echo "❌ Invalid branch name: $SOURCE_BRANCH"
+            echo ""
+            echo "Branch names must follow conventional commit patterns:"
+            echo "  • feature/* or feat/* - New features"
+            echo "  • fix/*              - Bug fixes"
+            echo "  • chore/*            - Maintenance tasks"
+            echo "  • refactor/*         - Code refactoring"
+            echo "  • docs/*             - Documentation changes"
+            echo "  • test/*             - Test additions/changes"
+            echo "  • perf/*             - Performance improvements"
+            echo "  • style/*            - Code style changes"
+            echo "  • build/*            - Build system changes"
+            echo "  • ci/*               - CI configuration changes"
+            echo "  • revert/*           - Reverting previous commits"
+            echo ""
+            echo "Examples:"
+            echo "  • feature/add-user-auth"
+            echo "  • fix/resolve-memory-leak"
+            echo "  • chore/update-dependencies"
+            echo "  • refactor/simplify-api-client"
+            exit 1
+          fi
+        
         else
-          echo "❌ Invalid PR: Only 'develop', 'release/*', or 'hotfix/*' branches can merge to main"
-          echo "Current branch: $SOURCE_BRANCH"
-          echo ""
-          echo "Please follow the Git Flow:"
-          echo "For normal features/fixes:"
-          echo "1. Create feature/*, fix/*, chore/*, refactor/*, etc. branch"
-          echo "2. Merge to develop first"
-          echo "3. Create a release from develop"
-          echo "4. Merge the release to main"
-          echo ""
-          echo "For critical production fixes:"
-          echo "1. Create hotfix/* branch from main"
-          echo "2. Merge directly to main"
-          echo "3. Back-merge to develop"
-          exit 1
+          echo "⚠️ Warning: Unexpected base branch: $BASE_BRANCH"
+          echo "This workflow only validates PRs to main and develop branches"
+          exit 0
         fi
