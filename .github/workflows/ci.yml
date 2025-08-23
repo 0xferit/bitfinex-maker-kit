@@ -296,8 +296,8 @@ jobs:
   paper-trading-tests:
     name: Paper Trading Tests (Optional)
     runs-on: ubuntu-latest
-    # Only run if paper trading secrets are available
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Only run if paper trading secrets are available (on PRs from same repo or direct pushes)
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     timeout-minutes: 20
     
     steps:
