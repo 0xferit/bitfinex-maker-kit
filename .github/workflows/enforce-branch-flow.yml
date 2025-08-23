@@ -1,0 +1,41 @@
+name: Enforce Branch Flow
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-source-branch:
+    name: Validate PR Source
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check PR is from develop or release branch
+      env:
+        SOURCE_BRANCH: ${{ github.head_ref }}
+        BASE_BRANCH: ${{ github.base_ref }}
+      run: |
+        echo "PR from: $SOURCE_BRANCH to: $BASE_BRANCH"
+        
+        # Validate base branch is main
+        if [[ "$BASE_BRANCH" != "main" ]]; then
+          echo "⚠️ Warning: Unexpected base branch: $BASE_BRANCH"
+          echo "This workflow only validates PRs to main branch"
+          exit 0
+        fi
+        
+        # Allow PRs only from develop or release/* branches
+        if [[ "$SOURCE_BRANCH" == "develop" ]] || [[ "$SOURCE_BRANCH" =~ ^release/.* ]]; then
+          echo "✅ Valid PR: $SOURCE_BRANCH → main"
+          exit 0
+        else
+          echo "❌ Invalid PR: Only 'develop' or 'release/*' branches can merge to main"
+          echo "Current branch: $SOURCE_BRANCH"
+          echo ""
+          echo "Please follow the Git Flow:"
+          echo "1. Merge your changes to develop first"
+          echo "2. Create a release from develop"
+          echo "3. Merge the release to main"
+          exit 1
+        fi
