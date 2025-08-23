@@ -63,12 +63,18 @@ jobs:
       id: bump
       run: |
         # Run the bump script
-        ./scripts/bump_version.py ${{ inputs.bump_type }}
+        python scripts/bump_version.py ${{ inputs.bump_type }}
         
         # Get the new version
         NEW_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "New version: $NEW_VERSION"
+        
+        # Validate version was actually bumped
+        if [[ "$NEW_VERSION" == "${{ steps.current.outputs.version }}" ]]; then
+          echo "Error: Version was not bumped"
+          exit 1
+        fi
     
     - name: Commit version bump
       run: |
@@ -79,22 +85,33 @@ jobs:
         if [[ -n "${{ inputs.commit_message }}" ]]; then
           COMMIT_MSG="${{ inputs.commit_message }}"
         else
-          COMMIT_MSG="chore: bump version from ${{ steps.current.outputs.version }} to ${{ steps.bump.outputs.new_version }}
-
-        Automated version bump (${{ inputs.bump_type }}) triggered via GitHub Actions"
+          COMMIT_MSG=$(cat << 'EOF'
+        chore: bump version from ${{ steps.current.outputs.version }} to ${{ steps.bump.outputs.new_version }}
+        
+        Automated version bump (${{ inputs.bump_type }}) triggered via GitHub Actions
+        EOF
+        )
         fi
         
         # Commit the changes
         git commit -m "$COMMIT_MSG"
         
-        # Push to develop
+        # Pull latest changes and push to develop (handle race conditions)
+        git pull --rebase origin develop || true
         git push origin develop
     
     - name: Create Release PR
       if: inputs.create_release_pr == true
       run: |
+        # Ensure main branch exists locally
+        git fetch origin main:main 2>/dev/null || true
+        
         # Get commit history for release notes
-        COMMITS=$(git log --oneline --no-merges main..develop | head -20)
+        if git rev-parse --verify main >/dev/null 2>&1; then
+          COMMITS=$(git log --oneline --no-merges main..develop | head -20 || echo "No commits found")
+        else
+          COMMITS=$(git log --oneline --no-merges HEAD~10..HEAD | head -20 || echo "No commits found")
+        fi
         
         # Determine release type for title
         RELEASE_TYPE="${{ inputs.bump_type }}"
@@ -113,9 +130,9 @@ jobs:
             ;;
         esac
         
-        # Create PR body
-        cat > pr_body.md << 'EOF'
-        ## ${{ env.EMOJI }} ${{ env.TYPE_DESC }} v${{ steps.bump.outputs.new_version }}
+        # Create PR body with proper variable substitution
+        cat > pr_body.md << EOF
+        ## ${EMOJI} ${TYPE_DESC} v${{ steps.bump.outputs.new_version }}
         
         This release was automatically prepared via GitHub Actions.
         
@@ -129,9 +146,9 @@ jobs:
         <details>
         <summary>Commits since last release</summary>
         
-        ```
-        ${{ env.COMMITS }}
-        ```
+        \`\`\`
+        ${COMMITS}
+        \`\`\`
         
         </details>
         
@@ -146,20 +163,16 @@ jobs:
         *This PR will trigger automatic PyPI deployment upon merge.*
         EOF
         
-        # Set environment variables for PR body
-        echo "EMOJI=$EMOJI" >> $GITHUB_ENV
-        echo "TYPE_DESC=$TYPE_DESC" >> $GITHUB_ENV
-        echo "COMMITS<<EOF" >> $GITHUB_ENV
-        echo "$COMMITS" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-        
         # Create the PR
         gh pr create \
           --base main \
           --head develop \
-          --title "Release v${{ steps.bump.outputs.new_version }}: $TYPE_DESC" \
+          --title "Release v${{ steps.bump.outputs.new_version }}: ${TYPE_DESC}" \
           --body-file pr_body.md \
-          --label "release"
+          --label "release" || {
+          echo "Warning: Failed to create PR. It may already exist or there may be no changes."
+          echo "You can create the PR manually later."
+        }
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
