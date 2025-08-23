@@ -144,7 +144,7 @@ markers = [
 [tool.semantic_release]
 branch = "main"
 version_toml = ["pyproject.toml:project.version"]
-version_variable = ["bitfinex_maker_kit/__init__.py:__version__"]
+version_variables = ["bitfinex_maker_kit/__init__.py:__version__"]
 version_pattern = ["CLAUDE.md:- \\*\\*Version\\*\\*: (?P<version>\\d+\\.\\d+\\.\\d+) \\(production-ready\\)"]
 build_command = "python -m build"
 commit_parser = "angular"
