@@ -20,8 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
-    # Note: Environment removed to match PyPI trusted publisher configuration
-    # PyPI expects token without environment:pypi in the subject claim
+    # IMPORTANT: This environment MUST match PyPI trusted publisher configuration
+    # Current PyPI config expects: workflow=publish.yml, environment=pypi
+    # To fix: Update PyPI to use workflow=.github/workflows/semantic-release.yml
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bitfinex-maker-kit
     
     steps:
     - name: Checkout code
