@@ -1,8 +1,7 @@
 name: Publish to PyPI
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
   workflow_dispatch:
@@ -10,7 +9,7 @@ on:
 jobs:
   check-release:
     name: Check if release needed
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,18 +31,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
     
-    - name: Check PR labels and title
+    - name: Check if release is needed
       id: check
       run: |
-        # Check if PR has release label or title indicates release
+        # For push events to main, always release
+        # For workflow_dispatch, always release
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           echo "should_release=true" >> $GITHUB_OUTPUT
-        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release') }}" == "true" ]]; then
+          echo "Release triggered by workflow_dispatch"
+        elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           echo "should_release=true" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.event.pull_request.base.ref }}" == "main" ]] && { [[ "${{ github.event.pull_request.head.ref }}" == "develop" ]] || [[ "${{ github.event.pull_request.head.ref }}" =~ ^release\/.*$ ]]; }; then
-          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "Release triggered by push to main"
         else
           echo "should_release=false" >> $GITHUB_OUTPUT
+          echo "No release needed"
         fi
     
     - name: Get version
@@ -113,7 +114,7 @@ jobs:
   publish-to-testpypi:
     name: Publish to TestPyPI
     needs: [check-release, build]
-    if: needs.check-release.outputs.should_release == 'true' && (github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-release'))
+    if: needs.check-release.outputs.should_release == 'true' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
