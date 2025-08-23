@@ -93,9 +93,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
-    environment:
-      name: pypi
-      url: https://pypi.org/p/bitfinex-maker-kit
+    # Note: Environment removed to match PyPI trusted publisher configuration
+    # PyPI is configured without environment constraint
     
     permissions:
       id-token: write  # IMPORTANT: Required for trusted publishing
