@@ -52,20 +52,34 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Check if there are any releasable changes
+        set -e  # Exit on error
         NEW_VERSION=$(semantic-release version --print 2>/dev/null || echo "")
         
         if [ -n "$NEW_VERSION" ]; then
           echo "New version detected: $NEW_VERSION"
           
-          # Run semantic release
-          if semantic-release version --commit --tag --push; then
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "released=true" >> $GITHUB_OUTPUT
-          else
-            echo "Semantic release failed"
-            echo "released=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          # Run semantic release with retry logic for network failures
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          SUCCESS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
+            if semantic-release version --commit --tag --push; then
+              echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+              echo "released=true" >> $GITHUB_OUTPUT
+              SUCCESS=true
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Semantic release failed (attempt $RETRY_COUNT/$MAX_RETRIES), retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "Semantic release failed after $MAX_RETRIES attempts"
+                echo "released=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            fi
+          done
         else
           echo "No releasable changes detected"
           echo "released=false" >> $GITHUB_OUTPUT
@@ -89,7 +103,7 @@ jobs:
         VERSION="v${{ steps.release.outputs.new_version }}"
         
         # Generate release notes from commits (robust tag discovery)
-        PREVIOUS_TAG=$(git tag --sort=-version:refname --merged HEAD | head -2 | tail -1 || echo "")
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
         if [ -z "$PREVIOUS_TAG" ]; then
           git log --oneline --no-merges HEAD -20 > commits.txt
         else
