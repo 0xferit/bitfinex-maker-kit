@@ -481,6 +481,64 @@ bitfinex_maker_kit/
 - **Facade Pattern**: Simplified interfaces over complex subsystems
 - **Domain-Driven Design**: Rich domain objects with business logic
 
+## 🤝 Contributing
+
+We welcome contributions! This project uses automated semantic versioning and release management.
+
+### Development Workflow
+
+1. **Fork and Clone**: Fork the repository and clone locally
+2. **Create Feature Branch**: Branch from `develop` for new features
+3. **Write Code**: Follow existing patterns and conventions
+4. **Test Thoroughly**: Ensure all tests pass with `pytest`
+5. **Submit PR**: Open a pull request to `develop` branch
+
+### Conventional Commits
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning. Your commit messages determine version bumps:
+
+| Commit Type | Example | Version Bump |
+|------------|---------|--------------|
+| `fix:` | `fix: correct order cancellation logic` | Patch (0.0.X) |
+| `feat:` | `feat: add stop-loss order support` | Minor (0.X.0) |
+| `BREAKING CHANGE:` | `feat!: change API response format` | Major (X.0.0) |
+| `chore:` | `chore: update dependencies` | No release |
+| `docs:` | `docs: improve API documentation` | No release |
+| `test:` | `test: add integration tests` | No release |
+| `refactor:` | `refactor: simplify order validation` | Patch (0.0.X) |
+| `perf:` | `perf: optimize WebSocket handling` | Patch (0.0.X) |
+
+#### Examples
+
+```bash
+# Bug fix (patch release)
+git commit -m "fix: resolve WebSocket reconnection issue"
+
+# New feature (minor release)
+git commit -m "feat: implement adaptive spread adjustment"
+
+# Breaking change (major release)
+git commit -m "feat!: redesign order management API
+
+BREAKING CHANGE: OrderManager.create() now requires Symbol parameter"
+
+# No release
+git commit -m "docs: add examples for market-make command"
+git commit -m "chore: update ruff configuration"
+```
+
+### Automated Release Process
+
+When changes are merged from `develop` to `main`:
+1. The system analyzes commit messages since the last release
+2. Automatically determines the version bump type
+3. Updates version in `pyproject.toml` and `__init__.py`
+4. Creates a git tag
+5. Publishes to PyPI
+6. Creates a GitHub release
+
+No manual version management needed!
+
 ## ⚠️ Risk Disclaimer
 
 **IMPORTANT**: Trading cryptocurrency involves substantial risk of loss and is not suitable for every investor. The volatile nature of cryptocurrency markets may result in significant financial losses. You should carefully consider whether trading is suitable for you in light of your circumstances, knowledge, and financial resources.

@@ -1,16 +1,18 @@
-name: Publish to PyPI
+name: Manual Publish to PyPI
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      test_pypi:
+        description: 'Publish to TestPyPI first'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   check-release:
     name: Check if release needed
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,18 +37,9 @@ jobs:
     - name: Check if release is needed
       id: check
       run: |
-        # Check if this is a release that should be published
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          echo "should_release=true" >> $GITHUB_OUTPUT
-          echo "Release triggered by workflow_dispatch"
-        elif [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
-          # PR was merged to main, so release
-          echo "should_release=true" >> $GITHUB_OUTPUT
-          echo "Release triggered by merged PR to main"
-        else
-          echo "should_release=false" >> $GITHUB_OUTPUT
-          echo "No release needed"
-        fi
+        # This is a manual release workflow
+        echo "should_release=true" >> $GITHUB_OUTPUT
+        echo "Manual release triggered by workflow_dispatch"
     
     - name: Get version
       id: version
@@ -95,8 +88,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
-    # Note: Environment removed to match PyPI trusted publisher configuration
-    # PyPI is configured without environment constraint
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bitfinex-maker-kit
     
     permissions:
       id-token: write  # IMPORTANT: Required for trusted publishing
@@ -115,7 +109,7 @@ jobs:
   publish-to-testpypi:
     name: Publish to TestPyPI
     needs: [check-release, build]
-    if: needs.check-release.outputs.should_release == 'true' && github.event_name == 'workflow_dispatch'
+    if: needs.check-release.outputs.should_release == 'true' && inputs.test_pypi == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
