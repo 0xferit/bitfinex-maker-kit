@@ -156,4 +156,4 @@ remove_dist = false
 [tool.semantic_release.commit_parser_options]
 major_types = ["breaking"]
 minor_types = ["feat"]
-patch_types = ["fix", "perf", "refactor", "build", "chore"]
+patch_types = ["fix", "perf", "refactor", "build"]
