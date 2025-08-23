@@ -2,6 +2,45 @@
 
 <!-- version list -->
 
+## v4.5.0 (2025-08-23)
+
+### Bug Fixes
+
+- Remove environment from semantic-release to fix PyPI publishing
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Remove environment from semantic-release to fix PyPI publishing (#43)
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Update branch protection to support hotfix branches (#44)
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Update branch protection to support hotfix branches for critical fixes
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Use RELEASE_TOKEN for semantic-release to bypass branch protection (#39) (#40)
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+### Features
+
+- Add version command and display version in help menu
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Add version command and display version in help menu (#48)
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+- Enforce conventional branch naming for PRs to develop
+  ([#49](https://github.com/0xferit/bitfinex-maker-kit/pull/49),
+  [`6635dbd`](https://github.com/0xferit/bitfinex-maker-kit/commit/6635dbd9c983f9313a891749cb6e98eca88a3140))
+
+
 ## v4.4.0 (2025-08-23)
 
 ### Bug Fixes
