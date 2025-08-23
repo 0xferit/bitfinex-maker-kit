@@ -529,13 +529,15 @@ git commit -m "chore: update ruff configuration"
 
 ### Automated Release Process
 
-When changes are merged from `develop` to `main`:
+When changes are merged to `main`:
 1. The system analyzes commit messages since the last release
-2. Automatically determines the version bump type
+2. Automatically determines the version bump type based on conventional commits
 3. Updates version in `pyproject.toml` and `__init__.py`
 4. Creates a git tag
 5. Publishes to PyPI
 6. Creates a GitHub release
+
+**Important**: Use squash and merge for PRs to ensure conventional commit format is preserved.
 
 No manual version management needed!
 
