@@ -10,6 +10,10 @@ permissions:
   pull-requests: write
   id-token: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Semantic Release
@@ -39,8 +43,8 @@ jobs:
     
     - name: Configure Git
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
     
     - name: Python Semantic Release
       id: release
@@ -84,8 +88,8 @@ jobs:
       run: |
         VERSION="v${{ steps.release.outputs.new_version }}"
         
-        # Generate release notes from commits (safe revision syntax)
-        PREVIOUS_TAG=$(git describe --tags --abbrev=0 'HEAD^' 2>/dev/null || echo "")
+        # Generate release notes from commits (robust tag discovery)
+        PREVIOUS_TAG=$(git tag --sort=-version:refname --merged HEAD | head -2 | tail -1 || echo "")
         if [ -z "$PREVIOUS_TAG" ]; then
           git log --oneline --no-merges HEAD -20 > commits.txt
         else
