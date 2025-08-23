@@ -17,7 +17,6 @@ from ..commands import (
     put_command,
     test_command,
     update_command,
-    version_command,
     wallet_command,
 )
 
@@ -33,7 +32,6 @@ class CommandRouter:
     def __init__(self) -> None:
         """Initialize command router with command mappings."""
         self.command_map: dict[str, Callable] = {
-            "version": self._route_version,
             "test": self._route_test,
             "wallet": self._route_wallet,
             "cancel": self._route_cancel,
@@ -64,10 +62,6 @@ class CommandRouter:
         # Route to the appropriate command handler
         handler = self.command_map[args.command]
         handler(args)
-
-    def _route_version(self, args: argparse.Namespace) -> None:
-        """Route version command."""
-        version_command()
 
     def _route_test(self, args: argparse.Namespace) -> None:
         """Route test command."""

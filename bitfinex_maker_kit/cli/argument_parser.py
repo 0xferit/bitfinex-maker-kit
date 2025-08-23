@@ -29,6 +29,9 @@ class CLIArgumentParser:
         self.parser = argparse.ArgumentParser(
             description=f"Bitfinex API CLI Tool v{__version__} (using official library)"
         )
+        self.parser.add_argument(
+            "--version", action="version", version=f"Bitfinex Maker-Kit v{__version__}"
+        )
         self.subparsers = self.parser.add_subparsers(dest="command", help="Available commands")
         self._setup_all_parsers()
 
@@ -48,9 +51,6 @@ class CLIArgumentParser:
 
     def _setup_basic_commands(self) -> None:
         """Set up basic command parsers (test, wallet, list)."""
-        # Version subcommand
-        self.subparsers.add_parser("version", help="Show version information")
-
         # Test subcommand
         self.subparsers.add_parser("test", help="Test REST API and WebSocket connections")
 
