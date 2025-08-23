@@ -13,6 +13,7 @@ from .monitor import monitor_command_sync as monitor_command
 from .put import put_command
 from .test import test_command
 from .update import update_command
+from .version import execute_version_command as version_command
 from .wallet import wallet_command
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "put_command",
     "test_command",
     "update_command",
+    "version_command",
     "wallet_command",
 ]

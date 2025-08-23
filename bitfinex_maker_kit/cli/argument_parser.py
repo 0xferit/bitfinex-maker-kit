@@ -7,6 +7,7 @@ with focused parsers for each command category.
 
 import argparse
 
+from .. import __version__
 from ..utilities.constants import (
     DEFAULT_LEVELS,
     DEFAULT_ORDER_SIZE,
@@ -26,7 +27,7 @@ class CLIArgumentParser:
     def __init__(self) -> None:
         """Initialize the argument parser."""
         self.parser = argparse.ArgumentParser(
-            description="Bitfinex API CLI Tool (using official library)"
+            description=f"Bitfinex API CLI Tool v{__version__} (using official library)"
         )
         self.subparsers = self.parser.add_subparsers(dest="command", help="Available commands")
         self._setup_all_parsers()
@@ -47,6 +48,9 @@ class CLIArgumentParser:
 
     def _setup_basic_commands(self) -> None:
         """Set up basic command parsers (test, wallet, list)."""
+        # Version subcommand
+        self.subparsers.add_parser("version", help="Show version information")
+
         # Test subcommand
         self.subparsers.add_parser("test", help="Test REST API and WebSocket connections")
 
