@@ -2,6 +2,37 @@
 
 <!-- version list -->
 
+## v4.4.0 (2025-08-23)
+
+### Bug Fixes
+
+- Remove environment from semantic-release to fix PyPI publishing
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+- Remove environment from semantic-release to fix PyPI publishing (#43)
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+- Update branch protection to support hotfix branches (#44)
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+- Update branch protection to support hotfix branches for critical fixes
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+- Use RELEASE_TOKEN for semantic-release to bypass branch protection (#39) (#40)
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+### Features
+
+- Enforce conventional branch naming for PRs to develop
+  ([#45](https://github.com/0xferit/bitfinex-maker-kit/pull/45),
+  [`89f2cee`](https://github.com/0xferit/bitfinex-maker-kit/commit/89f2ceece9625ebd044bde7c2b8233bc703dafe6))
+
+
 ## v4.3.0 (2025-08-23)
 
 ### Bug Fixes
