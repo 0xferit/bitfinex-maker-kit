@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v4.7.0 (2025-08-23)
+
+### Bug Fixes
+
+- Correct semantic-release config to update __init__.py version
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Remove environment from semantic-release to fix PyPI publishing
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Remove environment from semantic-release to fix PyPI publishing (#43)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Rename CLI command from maker-kit to bitfinex-maker-kit (#50)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Update branch protection to support hotfix branches (#44)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Update branch protection to support hotfix branches for critical fixes
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Use RELEASE_TOKEN for semantic-release to bypass branch protection (#39) (#40)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+### Features
+
+- Add version command and display version in help menu
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Add version command and display version in help menu (#48)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Auto-sync develop branch after main releases
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Enforce conventional branch naming for PRs to develop
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+- Improve version handling and add develop branch auto-sync (#52)
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+### Refactoring
+
+- Replace version command with --version flag
+  ([#52](https://github.com/0xferit/bitfinex-maker-kit/pull/52),
+  [`5ff80ee`](https://github.com/0xferit/bitfinex-maker-kit/commit/5ff80eebd45c31559bc4f5edb289c14ab92c5cb2))
+
+
 ## v4.6.0 (2025-08-23)
 
 ### Bug Fixes
