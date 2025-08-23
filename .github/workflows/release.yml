@@ -1,0 +1,192 @@
+name: Publish to PyPI
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  check-release:
+    name: Check if release needed
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install package for version check
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+    
+    - name: Check PR labels and title
+      id: check
+      run: |
+        # Check if PR has release label or title indicates release
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release') }}" == "true" ]]; then
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.event.pull_request.base.ref }}" == "main" ]] && { [[ "${{ github.event.pull_request.head.ref }}" == "develop" ]] || [[ "${{ github.event.pull_request.head.ref }}" =~ ^release\/.*$ ]]; }; then
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        else
+          echo "should_release=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Get version
+      id: version
+      if: steps.check.outputs.should_release == 'true'
+      run: |
+        VERSION=$(python -c "from bitfinex_maker_kit import __version__; print(__version__)")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version to release: $VERSION"
+
+  build:
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    name: Build distribution
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Store distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  create-tag:
+    name: Create Git Tag
+    needs: [check-release, build]
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create and push tag
+      run: |
+        VERSION="${{ needs.check-release.outputs.version }}"
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag -a "v$VERSION" -m "Release version $VERSION"
+        git push origin "v$VERSION"
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: [check-release, build, create-tag]
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bitfinex-maker-kit
+    
+    permissions:
+      id-token: write  # IMPORTANT: Required for trusted publishing
+    
+    steps:
+    - name: Download distribution packages
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      # No username/password needed - uses trusted publisher
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    needs: [check-release, build]
+    if: needs.check-release.outputs.should_release == 'true' && (github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-release'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    permissions:
+      id-token: write  # IMPORTANT: Required for trusted publishing
+    
+    steps:
+    - name: Download distribution packages
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        # No username/password needed - uses trusted publisher
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [check-release, publish-to-pypi]
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download distribution packages
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    
+    - name: Create Release Notes
+      run: |
+        echo "## Installation" > release_notes.md
+        echo '```bash' >> release_notes.md
+        echo "pip install bitfinex-maker-kit==${{ needs.check-release.outputs.version }}" >> release_notes.md
+        echo '```' >> release_notes.md
+        echo "" >> release_notes.md
+        echo "## Changelog" >> release_notes.md
+        echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details" >> release_notes.md
+    
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.check-release.outputs.version }}
+        files: dist/*
+        body_path: release_notes.md
