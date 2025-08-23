@@ -1,6 +1,9 @@
-name: Manual Publish to PyPI
+name: Publish to PyPI
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       test_pypi:
@@ -9,14 +12,100 @@ on:
         default: true
         type: boolean
 
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  check-release:
-    name: Check if release needed
-    if: github.event_name == 'workflow_dispatch'
+  semantic-release:
+    name: Semantic Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.new_version }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install python-semantic-release build
+    
+    - name: Configure Git
+      run: |
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Python Semantic Release
+      id: release
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      run: |
+        # Check if there are any releasable changes
+        set -e  # Exit on error
+        NEW_VERSION=$(semantic-release version --print 2>/dev/null || echo "")
+        
+        if [ -n "$NEW_VERSION" ]; then
+          echo "New version detected: $NEW_VERSION"
+          
+          # Run semantic release with retry logic for network failures
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          SUCCESS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
+            if semantic-release version --commit --tag --push; then
+              echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+              echo "released=true" >> $GITHUB_OUTPUT
+              SUCCESS=true
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Semantic release failed (attempt $RETRY_COUNT/$MAX_RETRIES), retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "Semantic release failed after $MAX_RETRIES attempts"
+                echo "released=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            fi
+          done
+        else
+          echo "No releasable changes detected"
+          echo "released=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Build distribution
+      if: steps.release.outputs.released == 'true'
+      run: python -m build
+    
+    - name: Store distribution packages
+      if: steps.release.outputs.released == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  manual-release:
+    name: Manual Release Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
       version: ${{ steps.version.outputs.version }}
@@ -49,14 +138,11 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version to release: $VERSION"
 
-  build:
-    needs: check-release
-    if: needs.check-release.outputs.should_release == 'true'
-    name: Build distribution
+  build-manual:
+    needs: manual-release
+    if: github.event_name == 'workflow_dispatch' && needs.manual-release.outputs.should_release == 'true'
+    name: Build distribution (Manual)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 20
     
     steps:
     - uses: actions/checkout@v4
@@ -83,8 +169,8 @@ jobs:
 
   publish-to-pypi:
     name: Publish to PyPI
-    needs: [check-release, build]
-    if: needs.check-release.outputs.should_release == 'true'
+    needs: [semantic-release, manual-release, build-manual]
+    if: always() && (needs.semantic-release.outputs.released == 'true' || needs.manual-release.outputs.should_release == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
@@ -104,12 +190,13 @@ jobs:
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-      # No username/password needed - uses trusted publisher
+      with:
+        verbose: true
 
   publish-to-testpypi:
     name: Publish to TestPyPI
-    needs: [check-release, build]
-    if: needs.check-release.outputs.should_release == 'true' && inputs.test_pypi == true
+    needs: [manual-release, build-manual]
+    if: github.event_name == 'workflow_dispatch' && needs.manual-release.outputs.should_release == 'true' && inputs.test_pypi == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
@@ -127,12 +214,71 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
-        # No username/password needed - uses trusted publisher
 
   create-github-release:
     name: Create GitHub Release
-    needs: [check-release, publish-to-pypi]
-    if: needs.check-release.outputs.should_release == 'true'
+    needs: [semantic-release, publish-to-pypi]
+    if: needs.semantic-release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_TOKEN }}
+    
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      run: |
+        VERSION="v${{ needs.semantic-release.outputs.version }}"
+        
+        # Generate release notes from commits (robust tag discovery)
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$PREVIOUS_TAG" ]; then
+          git log --oneline --no-merges HEAD -20 > commits.txt
+        else
+          git log --oneline --no-merges "$PREVIOUS_TAG..HEAD" > commits.txt
+        fi
+        
+        # Create release body
+        cat > release_notes.md << 'RELEASE_EOF'
+        ## What's Changed
+        
+        This release was automatically generated based on conventional commits.
+        
+        ### Commits
+        ```
+        RELEASE_EOF
+        
+        cat commits.txt >> release_notes.md
+        
+        cat >> release_notes.md << RELEASE_EOF
+        ```
+        
+        RELEASE_EOF
+        
+        # Only add comparison link if we have a previous tag
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}" >> release_notes.md
+        else
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${VERSION}" >> release_notes.md
+        fi
+        
+        # Create the GitHub release
+        gh release create "$VERSION" \
+          --title "Release $VERSION" \
+          --notes-file release_notes.md \
+          --target main
+
+  create-manual-github-release:
+    name: Create GitHub Release (Manual)
+    needs: [manual-release, publish-to-pypi]
+    if: github.event_name == 'workflow_dispatch' && needs.manual-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -144,7 +290,7 @@ jobs:
     
     - name: Create and push tag
       run: |
-        VERSION="${{ needs.check-release.outputs.version }}"
+        VERSION="${{ needs.manual-release.outputs.version }}"
         git config user.name github-actions
         git config user.email github-actions@github.com
         git tag -a "v$VERSION" -m "Release version $VERSION"
@@ -160,7 +306,7 @@ jobs:
       run: |
         echo "## Installation" > release_notes.md
         echo '```bash' >> release_notes.md
-        echo "pip install bitfinex-maker-kit==${{ needs.check-release.outputs.version }}" >> release_notes.md
+        echo "pip install bitfinex-maker-kit==${{ needs.manual-release.outputs.version }}" >> release_notes.md
         echo '```' >> release_notes.md
         echo "" >> release_notes.md
         echo "## Changelog" >> release_notes.md
@@ -169,6 +315,37 @@ jobs:
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ needs.check-release.outputs.version }}
+        tag_name: v${{ needs.manual-release.outputs.version }}
         files: dist/*
         body_path: release_notes.md
+
+  summary:
+    name: Release Summary
+    needs: [semantic-release, manual-release, publish-to-pypi]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Summary
+      run: |
+        echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.semantic-release.outputs.released }}" == "true" ]]; then
+          echo "✅ **New version released:** v${{ needs.semantic-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Actions Performed" >> $GITHUB_STEP_SUMMARY
+          echo "- Version bumped in pyproject.toml and __init__.py" >> $GITHUB_STEP_SUMMARY
+          echo "- Git tag created and pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- Package published to PyPI" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Release created" >> $GITHUB_STEP_SUMMARY
+        elif [[ "${{ needs.manual-release.outputs.should_release }}" == "true" ]]; then
+          echo "✅ **Manual release completed:** v${{ needs.manual-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ **No release needed** - No releasable changes detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To trigger a release, ensure your commits follow conventional commit format:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`feat:\` for new features (minor version bump)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`fix:\` for bug fixes (patch version bump)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`BREAKING CHANGE:\` in commit body for breaking changes (major version bump)" >> $GITHUB_STEP_SUMMARY
+        fi
