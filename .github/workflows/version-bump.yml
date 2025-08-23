@@ -97,7 +97,11 @@ jobs:
         git commit -m "$COMMIT_MSG"
         
         # Pull latest changes and push to develop (handle race conditions)
-        git pull --rebase origin develop || true
+        if ! git pull --rebase origin develop; then
+          echo "::error::Rebase failed. Please resolve conflicts manually."
+          git rebase --abort
+          exit 1
+        fi
         git push origin develop
     
     - name: Create Release PR
