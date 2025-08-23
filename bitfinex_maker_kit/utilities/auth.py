@@ -77,21 +77,40 @@ def get_credentials() -> tuple[str, str]:
     if not api_key or not api_secret:
         print("❌ Error: Missing required API credentials!")
         print()
+
+        # Show which specific credential is missing
+        if not api_key and not api_secret:
+            print("  ⚠️  Both API key and API secret are missing")
+        elif not api_key:
+            print("  ⚠️  API key is missing (API secret found)")
+        else:
+            print("  ⚠️  API secret is missing (API key found)")
+
+        print()
         print("📋 Set credentials using one of these methods:")
         print()
-        print("Method 1: Environment Variables")
-        print("  export BFX_API_KEY='your_api_key_here'")
-        print("  export BFX_API_SECRET='your_api_secret_here'")
+        print("Method 1: Environment Variables (Recommended)")
+        print("  export BITFINEX_API_KEY='your_api_key_here'")
+        print("  export BITFINEX_API_SECRET='your_api_secret_here'")
         print()
-        print("Method 2: Create a .env file in the same directory as this script:")
-        print("  echo 'BFX_API_KEY=your_api_key_here' > .env")
-        print("  echo 'BFX_API_SECRET=your_api_secret_here' >> .env")
+        print("  Alternative names (also supported):")
+        print("  • BFX_API_KEY / BFX_API_SECRET")
+        print("  • BITFINEX_API_PAPER_KEY / BITFINEX_API_PAPER_SECRET (for paper trading)")
+        print()
+        print("Method 2: Create a .env file in your project directory:")
+        print("  echo 'BITFINEX_API_KEY=your_api_key_here' > .env")
+        print("  echo 'BITFINEX_API_SECRET=your_api_secret_here' >> .env")
         print()
         print("📖 To get API keys:")
-        print("  1. Log into Bitfinex")
-        print("  2. Go to Settings → API")
-        print("  3. Create new key with trading permissions")
-        print("  4. Save the API key and secret")
+        print("  1. Log into Bitfinex (https://www.bitfinex.com)")
+        print("  2. Go to Account → API Keys")
+        print("  3. Create new key with 'Orders' and 'Wallets' permissions")
+        print("  4. Save the API key and secret securely")
+        print()
+        print("🔐 Security Tips:")
+        print("  • Never commit API keys to version control")
+        print("  • Use paper trading keys for testing")
+        print("  • Restrict API permissions to only what's needed")
         sys.exit(1)
 
     return api_key, api_secret
