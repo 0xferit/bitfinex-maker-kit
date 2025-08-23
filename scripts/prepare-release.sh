@@ -60,23 +60,46 @@ git pull origin develop
 echo -e "${GREEN}Fetching latest main branch...${NC}"
 git fetch origin main:main
 
-# 5. Get current version and calculate new version
+# 5. Get current version
 OLD_VERSION=$(python -c "from bitfinex_maker_kit import __version__; print(__version__)")
 echo -e "${GREEN}Current version: $OLD_VERSION${NC}"
 
-# Calculate new version without modifying files
-IFS='.' read -r major minor patch <<< "$OLD_VERSION"
-case "$BUMP_TYPE" in
-    major)
-        NEW_VERSION="$((major + 1)).0.0"
-        ;;
-    minor)
-        NEW_VERSION="$major.$((minor + 1)).0"
-        ;;
-    patch)
-        NEW_VERSION="$major.$minor.$((patch + 1))"
-        ;;
-esac
+# Use Python to calculate new version to handle pre-release tags correctly
+NEW_VERSION=$(python -c "
+import sys
+version = '$OLD_VERSION'
+bump_type = '$BUMP_TYPE'
+
+# Strip any pre-release or build metadata
+if '-' in version:
+    version = version.split('-')[0]
+if '+' in version:
+    version = version.split('+')[0]
+
+parts = version.split('.')
+if len(parts) != 3:
+    print(f'Error: Invalid version format: {version}', file=sys.stderr)
+    sys.exit(1)
+
+try:
+    major, minor, patch = map(int, parts)
+except ValueError:
+    print(f'Error: Non-numeric version parts: {version}', file=sys.stderr)
+    sys.exit(1)
+
+if bump_type == 'major':
+    print(f'{major + 1}.0.0')
+elif bump_type == 'minor':
+    print(f'{major}.{minor + 1}.0')
+elif bump_type == 'patch':
+    print(f'{major}.{minor}.{patch + 1}')
+")
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error: Failed to calculate new version${NC}"
+    exit 1
+fi
+
 echo -e "${GREEN}Target version: $NEW_VERSION${NC}"
 
 # Create release branch BEFORE any modifications
