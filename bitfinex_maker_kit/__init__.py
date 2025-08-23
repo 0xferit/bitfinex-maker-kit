@@ -11,7 +11,7 @@ This package provides comprehensive tools for:
 All limit orders are enforced to use POST_ONLY flag for maker rebates.
 """
 
-__version__ = "4.2.50"
+__version__ = "4.6.0"
 __author__ = "Maker-Kit Developer"
 __description__ = "Bitfinex CLI Tool for Automated Trading and Market Making"
 
