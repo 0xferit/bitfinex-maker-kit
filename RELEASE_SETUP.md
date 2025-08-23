@@ -1,20 +1,18 @@
 # Release Setup Instructions
 
 ## Current Status
-- **Version**: 4.2.50 (in code, not yet on PyPI)
-- **PyPI Version**: 4.2.49 (last successful release)
-- **Issue**: PyPI Trusted Publisher not configured
+- **Version**: 4.2.50 (current release on PyPI)
+- **PyPI Version**: 4.2.50 (last successful release)
+- **Automated Release**: Configured with semantic-release
 
-## Problem
-The automated release workflow failed with:
-```
-invalid-publisher: valid token, but no corresponding publisher
-```
+## Automated Release Configuration
 
-This occurs because PyPI expects a Trusted Publisher configuration that matches:
-- Repository: `0xferit/bitfinex-maker-kit`
-- Workflow: `.github/workflows/release.yml`
-- Environment: `pypi`
+The project uses semantic-release for automated versioning. When merging to main:
+- Conventional commits trigger automatic version bumps
+- `feat:` commits trigger minor version bumps
+- `fix:` commits trigger patch version bumps
+- Version is updated in pyproject.toml, __init__.py, and CLAUDE.md
+- Automatic PyPI publishing via trusted publisher
 
 ## Solution Options
 
