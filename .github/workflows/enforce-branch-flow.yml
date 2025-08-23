@@ -25,17 +25,27 @@ jobs:
           exit 0
         fi
         
-        # Allow PRs only from develop or release/* branches
-        if [[ "$SOURCE_BRANCH" == "develop" ]] || [[ "$SOURCE_BRANCH" =~ ^release/.* ]]; then
+        # Allow PRs from develop, release/*, or hotfix/* branches
+        # Hotfixes can go directly to main for critical production fixes
+        if [[ "$SOURCE_BRANCH" == "develop" ]] || \
+           [[ "$SOURCE_BRANCH" =~ ^release/.* ]] || \
+           [[ "$SOURCE_BRANCH" =~ ^hotfix/.* ]]; then
           echo "✅ Valid PR: $SOURCE_BRANCH → main"
           exit 0
         else
-          echo "❌ Invalid PR: Only 'develop' or 'release/*' branches can merge to main"
+          echo "❌ Invalid PR: Only 'develop', 'release/*', or 'hotfix/*' branches can merge to main"
           echo "Current branch: $SOURCE_BRANCH"
           echo ""
           echo "Please follow the Git Flow:"
-          echo "1. Merge your changes to develop first"
-          echo "2. Create a release from develop"
-          echo "3. Merge the release to main"
+          echo "For normal features/fixes:"
+          echo "1. Create feature/*, fix/*, chore/*, refactor/*, etc. branch"
+          echo "2. Merge to develop first"
+          echo "3. Create a release from develop"
+          echo "4. Merge the release to main"
+          echo ""
+          echo "For critical production fixes:"
+          echo "1. Create hotfix/* branch from main"
+          echo "2. Merge directly to main"
+          echo "3. Back-merge to develop"
           exit 1
         fi
