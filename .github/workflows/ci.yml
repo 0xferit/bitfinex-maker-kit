@@ -316,12 +316,10 @@ jobs:
         pip install -e ".[dev]"
     
     - name: Run paper trading tests
-      if: env.BFX_API_KEY != '' && env.BFX_API_SECRET != ''
+      if: secrets.BFX_API_PAPER_KEY != '' && secrets.BFX_API_PAPER_SECRET != ''
       run: |
         pytest tests/ -m "paper_trading" -v --tb=short --timeout=300 || echo "No paper trading tests found"
       env:
         BFX_API_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
         BFX_API_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
-        BFX_API_PAPER_KEY: ${{ secrets.BFX_API_PAPER_KEY }}
-        BFX_API_PAPER_SECRET: ${{ secrets.BFX_API_PAPER_SECRET }}
         MAKER_KIT_ENVIRONMENT: TESTING
