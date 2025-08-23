@@ -20,9 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
-    environment:
-      name: pypi
-      url: https://pypi.org/p/bitfinex-maker-kit
+    # Note: Environment removed to match PyPI trusted publisher configuration
+    # PyPI expects token without environment:pypi in the subject claim
     
     steps:
     - name: Checkout code
