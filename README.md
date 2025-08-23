@@ -137,43 +137,43 @@ pre-commit install
 ### Basic Usage
 ```bash
 # Test API connection
-maker-kit test
+bitfinex-maker-kit test
 
 # View wallet balances
-maker-kit wallet
+bitfinex-maker-kit wallet
 
 # List active orders
-maker-kit list
+bitfinex-maker-kit list
 
 # Get help
-maker-kit --help
+bitfinex-maker-kit --help
 ```
 
 ### Market Making
 ```bash
 # Create symmetric market making orders
-maker-kit market-make --symbol tBTCUSD --levels 5 --spread 1.0 --size 0.1
+bitfinex-maker-kit market-make --symbol tBTCUSD --levels 5 --spread 1.0 --size 0.1
 
 # Start automated market making
-maker-kit market-make --symbol tBTCUSD --levels 5
+bitfinex-maker-kit market-make --symbol tBTCUSD --levels 5
 
 # Fill spread gaps
-maker-kit fill-spread --symbol tETHUSD --levels 10
+bitfinex-maker-kit fill-spread --symbol tETHUSD --levels 10
 ```
 
 ### Advanced Features
 ```bash
 # Dry-run mode (recommended for testing)
-maker-kit market-make --symbol tBTCUSD --levels 3 --dry-run
+bitfinex-maker-kit market-make --symbol tBTCUSD --levels 3 --dry-run
 
 # Custom order placement
-maker-kit put --symbol tBTCUSD --amount 0.01 --price 50000.0 --side buy
+bitfinex-maker-kit put --symbol tBTCUSD --amount 0.01 --price 50000.0 --side buy
 
 # Batch order cancellation
-maker-kit cancel --symbol tBTCUSD --side buy
+bitfinex-maker-kit cancel --symbol tBTCUSD --side buy
 
 # Cancel all orders for a symbol
-maker-kit cancel --all --symbol tBTCUSD
+bitfinex-maker-kit cancel --all --symbol tBTCUSD
 ```
 
 #### 🧩 **Strategies Layer** (`strategies/`, `update_strategies/`)
@@ -321,7 +321,7 @@ bandit -r bitfinex_maker_kit/  # Security scan
 ### Using Performance Tools
 ```bash
 # Enable performance monitoring in commands
-maker-kit market-make --enable-monitoring
+bitfinex-maker-kit market-make --enable-monitoring
 
 # View performance metrics (via dashboard integration)
 # Dashboard accessible through market-make UI console
@@ -351,24 +351,24 @@ pytest tests/load/ -v  # Stress testing
 ### Docker Usage
 ```bash
 # Build image
-docker build -t maker-kit .
+docker build -t bitfinex-maker-kit .
 
 # Run container
 docker run -d \
-  --name maker-kit \
+  --name bitfinex-maker-kit \
   -e BITFINEX_API_KEY=your_key \
   -e BITFINEX_API_SECRET=your_secret \
-  maker-kit
+  bitfinex-maker-kit
 
 # View logs
-docker logs maker-kit
+docker logs bitfinex-maker-kit
 ```
 
 ### Docker Compose
 ```yaml
 version: '3.8'
 services:
-  maker-kit:
+  bitfinex-maker-kit:
     build: .
     environment:
       - BITFINEX_API_KEY=${BITFINEX_API_KEY}
@@ -566,4 +566,4 @@ All dependencies use compatible permissive licenses (MIT, BSD, Apache-2.0). See 
 
 **Ready for Enterprise Trading!** 🚀
 
-Start with `maker-kit test` to verify your setup, then explore the comprehensive feature set designed for professional market making. 
+Start with `bitfinex-maker-kit test` to verify your setup, then explore the comprehensive feature set designed for professional market making. 

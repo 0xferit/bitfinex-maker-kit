@@ -319,9 +319,53 @@ jobs:
         files: dist/*
         body_path: release_notes.md
 
+  sync-develop:
+    name: Sync develop with main
+    needs: [semantic-release, publish-to-pypi]
+    if: needs.semantic-release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Sync develop with main
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      run: |
+        # Fetch latest changes
+        git fetch origin main:main
+        git fetch origin develop:develop || true
+        
+        # Check if develop branch exists on remote
+        if git ls-remote --heads origin develop | grep -q develop; then
+          echo "Develop branch exists, syncing with main..."
+          git checkout develop
+          git merge main -m "chore: sync develop with main after v${{ needs.semantic-release.outputs.version }} release"
+          git push origin develop
+        else
+          echo "Develop branch does not exist on remote, creating it from main..."
+          git checkout -b develop main
+          git push origin develop
+        fi
+        
+        echo "✅ Develop branch synced with main" >> $GITHUB_STEP_SUMMARY
+
   summary:
     name: Release Summary
-    needs: [semantic-release, manual-release, publish-to-pypi]
+    needs: [semantic-release, manual-release, publish-to-pypi, sync-develop]
     if: always()
     runs-on: ubuntu-latest
     

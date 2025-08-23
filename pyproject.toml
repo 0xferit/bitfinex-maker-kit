@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-maker-kit = "bitfinex_maker_kit.cli:main"
+bitfinex-maker-kit = "bitfinex_maker_kit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
