@@ -1,0 +1,189 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      create_release_pr:
+        description: 'Create release PR to main after bump'
+        required: false
+        default: false
+        type: boolean
+      commit_message:
+        description: 'Custom commit message (optional)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout develop branch
+      uses: actions/checkout@v4
+      with:
+        ref: develop
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Get current version
+      id: current
+      run: |
+        # Extract version from pyproject.toml
+        CURRENT_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+    
+    - name: Bump version
+      id: bump
+      run: |
+        # Run the bump script
+        ./scripts/bump_version.py ${{ inputs.bump_type }}
+        
+        # Get the new version
+        NEW_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+    
+    - name: Commit version bump
+      run: |
+        # Stage the changed files
+        git add pyproject.toml bitfinex_maker_kit/__init__.py CLAUDE.md
+        
+        # Prepare commit message
+        if [[ -n "${{ inputs.commit_message }}" ]]; then
+          COMMIT_MSG="${{ inputs.commit_message }}"
+        else
+          COMMIT_MSG="chore: bump version from ${{ steps.current.outputs.version }} to ${{ steps.bump.outputs.new_version }}
+
+        Automated version bump (${{ inputs.bump_type }}) triggered via GitHub Actions"
+        fi
+        
+        # Commit the changes
+        git commit -m "$COMMIT_MSG"
+        
+        # Push to develop
+        git push origin develop
+    
+    - name: Create Release PR
+      if: inputs.create_release_pr == true
+      run: |
+        # Get commit history for release notes
+        COMMITS=$(git log --oneline --no-merges main..develop | head -20)
+        
+        # Determine release type for title
+        RELEASE_TYPE="${{ inputs.bump_type }}"
+        case $RELEASE_TYPE in
+          major)
+            EMOJI="🚀"
+            TYPE_DESC="Major Release"
+            ;;
+          minor)
+            EMOJI="✨"
+            TYPE_DESC="Feature Release"
+            ;;
+          patch)
+            EMOJI="🐛"
+            TYPE_DESC="Patch Release"
+            ;;
+        esac
+        
+        # Create PR body
+        cat > pr_body.md << 'EOF'
+        ## ${{ env.EMOJI }} ${{ env.TYPE_DESC }} v${{ steps.bump.outputs.new_version }}
+        
+        This release was automatically prepared via GitHub Actions.
+        
+        ### Version Change
+        - Previous: v${{ steps.current.outputs.version }}
+        - **New: v${{ steps.bump.outputs.new_version }}**
+        - Bump Type: ${{ inputs.bump_type }}
+        
+        ### Recent Changes
+        
+        <details>
+        <summary>Commits since last release</summary>
+        
+        ```
+        ${{ env.COMMITS }}
+        ```
+        
+        </details>
+        
+        ### Release Checklist
+        - [ ] Version numbers updated correctly
+        - [ ] Tests passing
+        - [ ] Documentation updated if needed
+        - [ ] Ready for production
+        
+        ---
+        
+        *This PR will trigger automatic PyPI deployment upon merge.*
+        EOF
+        
+        # Set environment variables for PR body
+        echo "EMOJI=$EMOJI" >> $GITHUB_ENV
+        echo "TYPE_DESC=$TYPE_DESC" >> $GITHUB_ENV
+        echo "COMMITS<<EOF" >> $GITHUB_ENV
+        echo "$COMMITS" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+        # Create the PR
+        gh pr create \
+          --base main \
+          --head develop \
+          --title "Release v${{ steps.bump.outputs.new_version }}: $TYPE_DESC" \
+          --body-file pr_body.md \
+          --label "release"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Summary
+      run: |
+        echo "## Version Bump Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Previous Version:** ${{ steps.current.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Version:** ${{ steps.bump.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bump Type:** ${{ inputs.bump_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** develop" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ inputs.create_release_pr }}" == "true" ]]; then
+          echo "- **Release PR:** Created" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Release PR:** Not created (manual creation required)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ inputs.create_release_pr }}" == "true" ]]; then
+          echo "1. Review the release PR" >> $GITHUB_STEP_SUMMARY
+          echo "2. Merge when ready to deploy to PyPI" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "1. Create a PR from develop to main when ready to release" >> $GITHUB_STEP_SUMMARY
+          echo "2. Merge to trigger PyPI deployment" >> $GITHUB_STEP_SUMMARY
+        fi
