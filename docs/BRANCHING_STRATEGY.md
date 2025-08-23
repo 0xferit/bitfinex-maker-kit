@@ -202,7 +202,7 @@ Before releasing:
 1. **Branch Protection Rules for `main`**
    - Require pull request reviews before merging
    - Require status checks to pass:
-     - `check-source-branch` (enforces develop/release only)
+     - `Validate PR Source` (enforces develop/release only)
      - Unit Tests
      - Security Scan
      - Build and Package
@@ -249,3 +249,49 @@ git commit -m "chore: fix version sync"
 2. Verify workflow permissions
 3. Ensure version not already published
 4. Check package validation with `twine check`
+
+### Branch Flow Enforcement Issues
+
+#### PR Rejected by "Validate PR Source" Check
+
+**Symptom:** PR to main fails with "Invalid PR: Only 'develop' or 'release/*' branches can merge to main"
+
+**Solution:**
+1. Ensure your PR is from `develop` or a `release/*` branch
+2. If working on a feature, first merge to develop:
+   ```bash
+   git checkout develop
+   git merge feature/your-feature
+   git push origin develop
+   ```
+3. Then create a release branch or PR from develop to main
+
+#### Git Hook Rejection
+
+**Symptom:** Push rejected with "Could not determine source branch"
+
+**Common Causes:**
+- Non-standard merge commit message format
+- Direct push attempt (not via PR)
+- Corrupted merge commit
+
+**Solution:**
+1. Always use GitHub PRs for merging to main
+2. Ensure merge commits follow standard format
+3. If using command line, use proper merge commands:
+   ```bash
+   git checkout main
+   git merge --no-ff develop -m "Merge branch 'develop' into main"
+   ```
+
+#### Debugging Branch Detection
+
+To test branch detection locally:
+```bash
+# Check merge commit message format
+git log --format=%s -n 1 HEAD
+
+# Verify it matches expected patterns:
+# - "Merge pull request #X from org/branch"
+# - "Merge branch 'branch' into main"
+```
