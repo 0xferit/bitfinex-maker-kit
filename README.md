@@ -7,6 +7,7 @@ A professional, production-ready command-line interface for automated trading an
 [![GitHub Stars](https://img.shields.io/github/stars/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/0xferit/bitfinex-maker-kit?style=flat-square&logo=github)](https://github.com/0xferit/bitfinex-maker-kit/issues)
+[![PyPI Version](https://img.shields.io/pypi/v/bitfinex-maker-kit?style=flat-square&logo=pypi)](https://pypi.org/project/bitfinex-maker-kit/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=flat-square&logo=python)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
@@ -479,6 +480,64 @@ bitfinex_maker_kit/
 - **Strategy Pattern**: Pluggable algorithms for order generation and updates
 - **Facade Pattern**: Simplified interfaces over complex subsystems
 - **Domain-Driven Design**: Rich domain objects with business logic
+
+## 🤝 Contributing
+
+We welcome contributions! This project uses automated semantic versioning and release management.
+
+### Development Workflow
+
+1. **Fork and Clone**: Fork the repository and clone locally
+2. **Create Feature Branch**: Branch from `develop` for new features
+3. **Write Code**: Follow existing patterns and conventions
+4. **Test Thoroughly**: Ensure all tests pass with `pytest`
+5. **Submit PR**: Open a pull request to `develop` branch
+
+### Conventional Commits
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning. Your commit messages determine version bumps:
+
+| Commit Type | Example | Version Bump |
+|------------|---------|--------------|
+| `fix:` | `fix: correct order cancellation logic` | Patch (0.0.X) |
+| `feat:` | `feat: add stop-loss order support` | Minor (0.X.0) |
+| `BREAKING CHANGE:` | `feat!: change API response format` | Major (X.0.0) |
+| `chore:` | `chore: update dependencies` | No release |
+| `docs:` | `docs: improve API documentation` | No release |
+| `test:` | `test: add integration tests` | No release |
+| `refactor:` | `refactor: simplify order validation` | Patch (0.0.X) |
+| `perf:` | `perf: optimize WebSocket handling` | Patch (0.0.X) |
+
+#### Examples
+
+```bash
+# Bug fix (patch release)
+git commit -m "fix: resolve WebSocket reconnection issue"
+
+# New feature (minor release)
+git commit -m "feat: implement adaptive spread adjustment"
+
+# Breaking change (major release)
+git commit -m "feat!: redesign order management API
+
+BREAKING CHANGE: OrderManager.create() now requires Symbol parameter"
+
+# No release
+git commit -m "docs: add examples for market-make command"
+git commit -m "chore: update ruff configuration"
+```
+
+### Automated Release Process
+
+When changes are merged from `develop` to `main`:
+1. The system analyzes commit messages since the last release
+2. Automatically determines the version bump type
+3. Updates version in `pyproject.toml` and `__init__.py`
+4. Creates a git tag
+5. Publishes to PyPI
+6. Creates a GitHub release
+
+No manual version management needed!
 
 ## ⚠️ Risk Disclaimer
 

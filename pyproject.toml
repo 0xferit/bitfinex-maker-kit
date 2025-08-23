@@ -139,3 +139,21 @@ markers = [
     "property: Property-based tests using Hypothesis",
     "realistic_load: Realistic load tests against real API"
 ]
+
+# Semantic Release - Automated versioning based on conventional commits
+[tool.semantic_release]
+branch = "main"
+version_toml = ["pyproject.toml:project.version"]
+version_variable = ["bitfinex_maker_kit/__init__.py:__version__"]
+version_pattern = ["CLAUDE.md:\\*\\*Version\\*\\*: (?P<version>\\d+\\.\\d+\\.\\d+)"]
+build_command = "python -m build"
+commit_parser = "conventional_commits"
+major_on_zero = false
+tag_format = "v{version}"
+dist_path = "dist/"
+remove_dist = false
+
+[tool.semantic_release.commit_parser_options]
+major_types = ["breaking"]
+minor_types = ["feat"]
+patch_types = ["fix", "perf", "refactor", "build"]
