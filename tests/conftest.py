@@ -21,13 +21,7 @@ from bitfinex_maker_kit.domain.price import Price
 
 # Import project modules
 from bitfinex_maker_kit.domain.symbol import Symbol
-from bitfinex_maker_kit.services.cache_service import CacheService, create_cache_service
 from bitfinex_maker_kit.services.container import ServiceContainer, get_container
-from bitfinex_maker_kit.services.performance_monitor import (
-    PerformanceMonitor,
-    create_performance_monitor,
-)
-from bitfinex_maker_kit.utilities.profiler import PerformanceProfiler, create_profiler
 
 
 # Pytest configuration
@@ -276,32 +270,6 @@ def paper_trading_available(paper_trading_config) -> bool:
         and paper_trading_config["api_key"] != ""
         and paper_trading_config["api_secret"] != ""
     )
-
-
-@pytest.fixture
-async def cache_service() -> AsyncGenerator[CacheService, None]:
-    """Create cache service for testing."""
-    service = create_cache_service(max_size=100, default_ttl=10.0)
-    yield service
-    await service.cleanup()
-
-
-@pytest.fixture
-def performance_monitor() -> Generator[PerformanceMonitor, None]:
-    """Create performance monitor for testing."""
-    monitor = create_performance_monitor(monitoring_interval=1.0, retention_period=60.0)
-    monitor.start_monitoring()
-    yield monitor
-    # Schedule cleanup task
-    task = asyncio.create_task(monitor.stop_monitoring())
-    # Store reference to prevent garbage collection
-    _cleanup_task = task
-
-
-@pytest.fixture
-def profiler() -> PerformanceProfiler:
-    """Create profiler for testing."""
-    return create_profiler(enable_memory_tracking=False)  # Disable for tests
 
 
 @pytest.fixture
@@ -562,12 +530,6 @@ def isolate_tests():
 
 
 # Parametrized fixtures for comprehensive testing
-@pytest.fixture(params=["memory", "redis"])
-def cache_backend_type(request):
-    """Parametrized cache backend types."""
-    return request.param
-
-
 @pytest.fixture(params=[1, 5, 10, 50])
 def batch_sizes(request):
     """Parametrized batch sizes for testing."""

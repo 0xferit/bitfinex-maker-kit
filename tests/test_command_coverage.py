@@ -234,12 +234,9 @@ class TestCoverageMetrics:
             f for f in untested_files if not any(exc in f for exc in allowed_untested)
         ]
 
-        # Exempt UI, websocket plumbing, CLI plumbing and strategy internals from strict coverage enforcement
+        # Exempt websocket plumbing, CLI plumbing and strategy internals from strict coverage enforcement
         exemptions = [
-            "ui/market_maker_console.py",
-            "websocket/async_event_loop.py",
             "websocket/event_handler.py",
-            "websocket/connection_manager.py",
             "commands/monitor_display.py",
             "commands/monitor_websocket.py",
             "core/trading_facade.py",
@@ -253,14 +250,9 @@ class TestCoverageMetrics:
             "update_strategies/websocket_strategy.py",
             "cli/command_router.py",
             "cli/argument_parser.py",
-            "utilities/market_data_cache.py",
             "utilities/order_fetcher.py",
             "utilities/display_helpers.py",
-            "utilities/performance_dashboard.py",
-            "services/sync_trading_facade.py",
-            "services/market_data_service.py",
-            "services/batch_request_service.py",
-            "services/async_trading_service.py",
+            "utilities/console.py",
             "commands/core/",
         ]
         untested_files = [f for f in untested_files if not any(x in f for x in exemptions)]
