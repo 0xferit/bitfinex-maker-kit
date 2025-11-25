@@ -144,28 +144,27 @@ class MonitorDisplay:
 
         return liq_bid, liq_ask
 
-    def process_ticker_update(self, ticker_data: list) -> None:
-        """Process ticker update and extract last price."""
-        if len(ticker_data) >= 7:
-            self.last_price = float(ticker_data[6])  # LAST_PRICE
+    def process_ticker_update(self, ticker_data: Any) -> None:
+        """Process ticker update and extract last price. Receives TradingPairTicker dataclass."""
+        if hasattr(ticker_data, "last_price"):
+            self.last_price = float(ticker_data.last_price)
             self.connection_stats["last_ticker_update"] = time.time()
 
-    def process_order_book_snapshot(self, book_data: list) -> None:
-        """Process order book snapshot and organize by bids/asks."""
+    def process_order_book_snapshot(self, book_data: Any) -> None:
+        """Process order book snapshot. Receives list of TradingPairBook dataclasses."""
         bids = []
         asks = []
 
         for entry in book_data:
-            if len(entry) >= 3:
-                price = float(entry[0])
-                count = int(entry[1])
-                amount = float(entry[2])
+            price = float(entry.price)
+            count = int(entry.count)
+            amount = float(entry.amount)
 
-                if count > 0:
-                    if amount > 0:
-                        bids.append([price, amount, count])
-                    else:
-                        asks.append([price, abs(amount), count])
+            if count > 0:
+                if amount > 0:
+                    bids.append([price, amount, count])
+                else:
+                    asks.append([price, abs(amount), count])
 
         # Sort bids (highest first) and asks (lowest first)
         bids.sort(key=lambda x: x[0], reverse=True)
@@ -180,14 +179,11 @@ class MonitorDisplay:
         self.connection_stats["last_book_update"] = time.time()
         self.connection_stats["total_book_updates"] += 1
 
-    def process_order_book_update(self, book_level: list) -> None:
-        """Process incremental order book update."""
-        if len(book_level) < 3:
-            return
-
-        price = float(book_level[0])
-        count = int(book_level[1])
-        amount = float(book_level[2])
+    def process_order_book_update(self, book_level: Any) -> None:
+        """Process incremental order book update. Receives TradingPairBook dataclass."""
+        price = float(book_level.price)
+        count = int(book_level.count)
+        amount = float(book_level.amount)
 
         # Determine if this is a bid or ask
         is_bid = amount > 0
@@ -224,45 +220,43 @@ class MonitorDisplay:
         self.connection_stats["last_book_update"] = time.time()
         self.connection_stats["total_book_updates"] += 1
 
-    def process_trades_snapshot(self, trades_data: list) -> None:
-        """Process trades snapshot from WebSocket."""
+    def process_trades_snapshot(self, trades_data: Any) -> None:
+        """Process trades snapshot. Receives list of TradingPairTrade dataclasses."""
         for trade in trades_data:
             self.process_trade(trade)
 
-    def process_trade(self, trade_data: list) -> None:
-        """Process individual trade data."""
-        if len(trade_data) >= 5:
-            trade_info = {
-                "id": trade_data[0],
-                "timestamp": trade_data[1],
-                "amount": float(trade_data[2]),
-                "price": float(trade_data[3]),
-                "side": "BUY" if float(trade_data[2]) > 0 else "SELL",
-            }
-            self.recent_trades.append(trade_info)
-            self.connection_stats["last_trade_time"] = time.time()
-            self.connection_stats["total_trades"] += 1
+    def process_trade(self, trade_data: Any) -> None:
+        """Process individual trade. Receives TradingPairTrade dataclass."""
+        trade_info = {
+            "id": trade_data.id,
+            "timestamp": trade_data.mts,
+            "amount": float(trade_data.amount),
+            "price": float(trade_data.price),
+            "side": "BUY" if float(trade_data.amount) > 0 else "SELL",
+        }
+        self.recent_trades.append(trade_info)
+        self.connection_stats["last_trade_time"] = time.time()
+        self.connection_stats["total_trades"] += 1
 
-    def parse_order_data(self, order_data: list) -> OrderData | None:
-        """Convert raw Bitfinex order array to OrderData object."""
+    def parse_order_data(self, order_data: Any) -> OrderData | None:
+        """Convert bfxapi Order dataclass to local OrderData object."""
         try:
-            # Bitfinex order array format: [ID, GID, CID, SYMBOL, MTS_CREATE, MTS_UPDATE, AMOUNT, AMOUNT_ORIG, ORDER_TYPE, TYPE_PREV, MTS_TIF, PLACEHOLDER, FLAGS, STATUS, PLACEHOLDER, PLACEHOLDER, PRICE, ...]
             return OrderData(
-                id=order_data[0],  # ID
-                symbol=order_data[3],  # SYMBOL
-                amount=order_data[6],  # AMOUNT
-                price=order_data[16],  # PRICE
-                status=order_data[13],  # STATUS
+                id=order_data.id,
+                symbol=order_data.symbol,
+                amount=order_data.amount,
+                price=order_data.price,
+                status=order_data.order_status,
             )
-        except (IndexError, TypeError) as e:
+        except (AttributeError, TypeError) as e:
             self.add_event(f"Error parsing order data: {e}", "ERR")
             return None
 
-    def process_user_orders_snapshot(self, orders_data: list) -> None:
-        """Process user orders snapshot."""
+    def process_user_orders_snapshot(self, orders_data: Any) -> None:
+        """Process user orders snapshot. Receives list of Order dataclasses."""
         self.user_orders = []
         for order_data in orders_data:
-            if order_data and len(order_data) >= 17:
+            if order_data:
                 parsed_order = self.parse_order_data(order_data)
                 if parsed_order and parsed_order.symbol == self.symbol:
                     self.user_orders.append(parsed_order)
@@ -270,18 +264,18 @@ class MonitorDisplay:
         self.connection_stats["user_orders_count"] = len(self.user_orders)
         self.calculate_user_orders_in_range()
 
-    def process_user_order_new(self, order_data: list) -> None:
-        """Process new user order."""
-        if order_data and len(order_data) >= 17:
+    def process_user_order_new(self, order_data: Any) -> None:
+        """Process new user order. Receives Order dataclass."""
+        if order_data:
             parsed_order = self.parse_order_data(order_data)
             if parsed_order and parsed_order.symbol == self.symbol:
                 self.user_orders.append(parsed_order)
                 self.connection_stats["user_orders_count"] = len(self.user_orders)
                 self.calculate_user_orders_in_range()
 
-    def process_user_order_update(self, order_data: list) -> None:
-        """Process user order update."""
-        if order_data and len(order_data) >= 17:
+    def process_user_order_update(self, order_data: Any) -> None:
+        """Process user order update. Receives Order dataclass."""
+        if order_data:
             parsed_order = self.parse_order_data(order_data)
             if parsed_order and parsed_order.symbol == self.symbol:
                 # Find and update existing order
@@ -291,10 +285,10 @@ class MonitorDisplay:
                         break
                 self.calculate_user_orders_in_range()
 
-    def process_user_order_cancel(self, order_data: list) -> None:
-        """Process user order cancellation."""
-        if order_data and len(order_data) >= 1:
-            order_id = order_data[0]
+    def process_user_order_cancel(self, order_data: Any) -> None:
+        """Process user order cancellation. Receives Order dataclass."""
+        if order_data:
+            order_id = order_data.id
             # Remove order from list
             self.user_orders = [order for order in self.user_orders if order.id != order_id]
             self.connection_stats["user_orders_count"] = len(self.user_orders)

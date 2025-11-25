@@ -12,18 +12,13 @@ from .client_mocks import (
     create_mock_async_client,
     create_mock_client,
 )
-from .service_mocks import MockCacheService, MockPerformanceMonitor, MockTradingService
+from .service_mocks import MockTradingService
 
 __all__ = [
     "MockAPIResponse",
     "MockAsyncClient",
-    # API mocks
     "MockBitfinexAPI",
-    # Client mocks
     "MockBitfinexClient",
-    "MockCacheService",
-    "MockPerformanceMonitor",
-    # Service mocks
     "MockTradingService",
     "MockWebSocketConnection",
     "create_mock_async_client",

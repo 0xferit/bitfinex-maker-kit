@@ -328,39 +328,6 @@ class TestCommandIntegration:
         cancel_command(order_id=12345, dry_run=True)
 
 
-@pytest.mark.benchmark
-class TestCommandPerformance:
-    """Performance tests for command execution."""
-
-    @pytest.fixture
-    def mock_fast_container(self):
-        """Fast mock container for performance testing."""
-        container = Mock()
-        trading_service = Mock()
-        client = Mock()
-
-        container.create_trading_service.return_value = trading_service
-        container.create_bitfinex_client.return_value = client
-
-        # Fast responses
-        trading_service.get_orders.return_value = []
-        client.get_wallets.return_value = []
-
-        return container, trading_service, client
-
-    def test_command_execution_speed(self, mock_fast_container, benchmark):
-        """Test command execution speed."""
-        container, trading_service, client = mock_fast_container
-
-        def run_test_command():
-            with patch("bitfinex_maker_kit.commands.test.get_container", return_value=container):
-                test_command()
-
-        # Should execute quickly
-        result = benchmark(run_test_command)
-        assert result is None  # Command should complete
-
-
 @pytest.mark.load
 class TestCommandLoad:
     """Load tests for command stress testing."""

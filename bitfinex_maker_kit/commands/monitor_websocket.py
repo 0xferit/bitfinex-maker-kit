@@ -45,8 +45,8 @@ class MonitorWebSocketHandlers:
                     )
 
         def on_ticker_update(subscription: Any, ticker_data: Any) -> None:
-            """Handle ticker updates."""
-            if ticker_data and hasattr(ticker_data, "__getitem__"):
+            """Handle ticker updates. Receives TradingPairTicker dataclass."""
+            if ticker_data:
                 try:
                     self.display.connection_stats["ticker_channel"] = True
                     self.display.process_ticker_update(ticker_data)
@@ -54,7 +54,7 @@ class MonitorWebSocketHandlers:
                     self.display.add_event(f"Error processing ticker: {e}", "ERR")
 
         def on_book_snapshot(subscription: Any, book_data: Any) -> None:
-            """Handle order book snapshot."""
+            """Handle order book snapshot. Receives list of TradingPairBook dataclasses."""
             if book_data:
                 try:
                     self.display.connection_stats["book_channel"] = True
@@ -64,17 +64,16 @@ class MonitorWebSocketHandlers:
                     self.display.add_event(f"Error processing order book snapshot: {e}", "ERR")
 
         def on_book_update(subscription: Any, book_level: Any) -> None:
-            """Handle incremental order book updates."""
+            """Handle incremental order book updates. Receives TradingPairBook dataclass."""
             if book_level:
                 try:
                     self.display.connection_stats["book_channel"] = True
                     self.display.process_order_book_update(book_level)
-                    # Don't log every book update to avoid spam
                 except Exception as e:
                     self.display.add_event(f"Error processing book update: {e}", "ERR")
 
         def on_trades_snapshot(subscription: Any, trades_data: Any) -> None:
-            """Handle trades snapshot."""
+            """Handle trades snapshot. Receives list of TradingPairTrade dataclasses."""
             if trades_data:
                 try:
                     self.display.connection_stats["trades_channel"] = True
@@ -84,17 +83,16 @@ class MonitorWebSocketHandlers:
                     self.display.add_event(f"Error processing trades snapshot: {e}", "ERR")
 
         def on_trade_execution(subscription: Any, trade_data: Any) -> None:
-            """Handle individual trade execution."""
+            """Handle individual trade execution. Receives TradingPairTrade dataclass."""
             if trade_data:
                 try:
                     self.display.connection_stats["trades_channel"] = True
                     self.display.process_trade(trade_data)
-                    # Don't log every trade to avoid spam in high-volume periods
                 except Exception as e:
                     self.display.add_event(f"Error processing trade: {e}", "ERR")
 
         def on_trade_execution_update(subscription: Any, trade_data: Any) -> None:
-            """Handle trade execution updates."""
+            """Handle trade execution updates. Receives TradingPairTrade dataclass."""
             if trade_data:
                 try:
                     self.display.process_trade(trade_data)
@@ -104,8 +102,8 @@ class MonitorWebSocketHandlers:
         def on_disconnected() -> None:
             self.display.add_event("WebSocket disconnected", "DISC")
 
-        def on_auth_order_snapshot(orders_data: Any) -> None:
-            """Handle authenticated user orders snapshot."""
+        def on_order_snapshot(orders_data: Any) -> None:
+            """Handle user orders snapshot. Receives list of Order dataclasses."""
             if orders_data:
                 try:
                     self.display.process_user_orders_snapshot(orders_data)
@@ -114,39 +112,36 @@ class MonitorWebSocketHandlers:
                 except Exception as e:
                     self.display.add_event(f"Error processing orders snapshot: {e}", "ERR")
 
-        def on_auth_order_new(order_data: Any) -> None:
-            """Handle new authenticated user order."""
+        def on_order_new(order_data: Any) -> None:
+            """Handle new user order. Receives Order dataclass."""
             if order_data:
                 try:
                     self.display.process_user_order_new(order_data)
-                    if hasattr(order_data, "__getitem__") and len(order_data) > 3:
-                        symbol = order_data[3] if len(order_data) > 3 else "Unknown"
-                        if symbol == self.symbol:
-                            self.display.add_event(f"New order: {symbol}", "ORDER")
+                    symbol = getattr(order_data, "symbol", "Unknown")
+                    if symbol == self.symbol:
+                        self.display.add_event(f"New order: {symbol}", "ORDER")
                 except Exception as e:
                     self.display.add_event(f"Error processing new order: {e}", "ERR")
 
-        def on_auth_order_update(order_data: Any) -> None:
-            """Handle authenticated user order update."""
+        def on_order_update(order_data: Any) -> None:
+            """Handle user order update. Receives Order dataclass."""
             if order_data:
                 try:
                     self.display.process_user_order_update(order_data)
-                    if hasattr(order_data, "__getitem__") and len(order_data) > 3:
-                        symbol = order_data[3] if len(order_data) > 3 else "Unknown"
-                        if symbol == self.symbol:
-                            self.display.add_event(f"Order updated: {symbol}", "ORDER")
+                    symbol = getattr(order_data, "symbol", "Unknown")
+                    if symbol == self.symbol:
+                        self.display.add_event(f"Order updated: {symbol}", "ORDER")
                 except Exception as e:
                     self.display.add_event(f"Error processing order update: {e}", "ERR")
 
-        def on_auth_order_cancel(order_data: Any) -> None:
-            """Handle authenticated user order cancellation."""
+        def on_order_cancel(order_data: Any) -> None:
+            """Handle user order cancellation. Receives Order dataclass."""
             if order_data:
                 try:
                     self.display.process_user_order_cancel(order_data)
-                    if hasattr(order_data, "__getitem__") and len(order_data) > 3:
-                        symbol = order_data[3] if len(order_data) > 3 else "Unknown"
-                        if symbol == self.symbol:
-                            self.display.add_event(f"Order cancelled: {symbol}", "ORDER")
+                    symbol = getattr(order_data, "symbol", "Unknown")
+                    if symbol == self.symbol:
+                        self.display.add_event(f"Order cancelled: {symbol}", "ORDER")
                 except Exception as e:
                     self.display.add_event(f"Error processing order cancellation: {e}", "ERR")
 
@@ -154,19 +149,19 @@ class MonitorWebSocketHandlers:
         wss.on("open", on_open)
         wss.on("authenticated", on_authenticated)
 
-        # Market data handlers
-        wss.on("ticker", on_ticker_update)
-        wss.on("book_snapshot", on_book_snapshot)
-        wss.on("book_update", on_book_update)
-        wss.on("trades_snapshot", on_trades_snapshot)
-        wss.on("trade_execution", on_trade_execution)
-        wss.on("trade_execution_update", on_trade_execution_update)
+        # Market data handlers (use t_ prefix for trading pairs)
+        wss.on("t_ticker_update", on_ticker_update)
+        wss.on("t_book_snapshot", on_book_snapshot)
+        wss.on("t_book_update", on_book_update)
+        wss.on("t_trades_snapshot", on_trades_snapshot)
+        wss.on("t_trade_execution", on_trade_execution)
+        wss.on("t_trade_execution_update", on_trade_execution_update)
 
         # Connection handlers
         wss.on("disconnected", on_disconnected)
 
         # Authenticated user data handlers
-        wss.on("auth_order_snapshot", on_auth_order_snapshot)
-        wss.on("auth_order_new", on_auth_order_new)
-        wss.on("auth_order_update", on_auth_order_update)
-        wss.on("auth_order_cancel", on_auth_order_cancel)
+        wss.on("order_snapshot", on_order_snapshot)
+        wss.on("order_new", on_order_new)
+        wss.on("order_update", on_order_update)
+        wss.on("order_cancel", on_order_cancel)

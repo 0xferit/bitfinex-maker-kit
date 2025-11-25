@@ -19,12 +19,6 @@ from .market_data import (
     TickerDataFixture,
     TradeHistoryFixture,
 )
-from .performance_data import (
-    BenchmarkFixture,
-    MetricsFixture,
-    PerformanceFixtures,
-    ProfileDataFixture,
-)
 from .trading_data import (
     BalanceFixture,
     OrderFixture,
@@ -35,28 +29,20 @@ from .trading_data import (
 )
 
 __all__ = [
-    # API response fixtures
     "APIResponseFixture",
     "APIResponseFixtures",
     "BalanceFixture",
-    "BenchmarkFixture",
     "ErrorResponseFixture",
-    # Market data fixtures
     "MarketDataFixtures",
-    "MetricsFixture",
     "OrderBookFixture",
     "OrderFixture",
     "OrderSide",
     "OrderStatus",
-    # Performance data fixtures
-    "PerformanceFixtures",
     "PortfolioFixture",
-    "ProfileDataFixture",
     "ResponseStatus",
     "SuccessResponseFixture",
     "TickerDataFixture",
     "TradeHistoryFixture",
-    # Trading data fixtures
     "TradingFixtures",
     "WebSocketMessageFixture",
 ]

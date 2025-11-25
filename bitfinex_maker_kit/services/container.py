@@ -158,33 +158,6 @@ class ServiceContainer:
             logger.error(f"Failed to create WebSocket handler: {e}")
             raise ValueError(f"Failed to create WebSocket handler: {e}") from e
 
-    def create_market_maker_ui(
-        self,
-        symbol: str,
-        center_price: float,
-        levels: int,
-        spread_pct: float,
-        size: float,
-        side_filter: str | None = None,
-    ) -> Any:
-        """
-        Create market maker UI with configuration.
-
-        Args:
-            symbol: Trading symbol
-            center_price: Center price for orders
-            levels: Number of price levels
-            spread_pct: Spread percentage
-            size: Order size
-            side_filter: Optional side filter
-
-        Returns:
-            Configured MarketMakerUI instance
-        """
-        from ..ui.market_maker_console import MarketMakerUI
-
-        return MarketMakerUI(symbol, center_price, levels, spread_pct, size, side_filter)
-
     def create_order_generator(
         self, levels: int, spread_pct: float, size: float, side_filter: str | None = None
     ) -> Any:
