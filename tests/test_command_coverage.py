@@ -127,7 +127,6 @@ class TestCommandCoverage:
             "@pytest.mark.paper_trading",
             "@pytest.mark.unit",
             "@pytest.mark.integration",
-            "@pytest.mark.benchmark",
             "@pytest.mark.load",
             "@pytest.mark.property",
         ]
