@@ -66,7 +66,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start WebSocket connection in background
-        websocket_task = asyncio.create_task(wss.run())
+        websocket_task = asyncio.create_task(wss.start())
 
         try:
             # Main display loop
