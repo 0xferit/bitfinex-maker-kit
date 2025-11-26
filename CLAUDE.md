@@ -7,7 +7,7 @@
 ### Key Characteristics
 - **Language**: Python 3.12+ (strictly enforced)
 - **License**: MIT (open source)
-- **Version**: 5.0.1 (production-ready)
+- **Version**: 5.0.2 (production-ready)
 - **Purpose**: Market making and automated trading on Bitfinex
 - **Architecture**: Single exchange, single strategy, safety-focused design
 

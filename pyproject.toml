@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitfinex-maker-kit"
-version = "5.0.1"
+version = "5.0.2"
 description = "Professional market making toolkit for Bitfinex cryptocurrency exchange"
 readme = "README.md"
 license = {text = "MIT"}
@@ -17,7 +17,8 @@ dependencies = [
     "asyncio>=3.4.3",
     "aiohttp>=3.8.0",
     "click>=8.0.0",
-    "psutil>=5.9.0"
+    "psutil>=5.9.0",
+    "rich>=13.0.0"
 ]
 
 [project.optional-dependencies]

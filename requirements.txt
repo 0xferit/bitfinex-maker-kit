@@ -8,6 +8,7 @@ python-dotenv>=1.0.0
 asyncio>=3.4.3
 aiohttp>=3.8.0
 click>=8.0.0
+rich>=13.0.0
 
 # Development dependencies (install with: pip install -e ".[dev]")
 # - ruff>=0.6.0      # All-in-one linter and formatter
