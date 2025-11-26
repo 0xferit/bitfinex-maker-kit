@@ -14,6 +14,7 @@ from ..bitfinex_client import BitfinexClientWrapper
 from ..utilities.auth import get_credentials
 from ..utilities.constants import DEFAULT_SYMBOL
 from .monitor_display import MonitorDisplay
+from .monitor_ui import MonitorUI
 from .monitor_websocket import MonitorWebSocketHandlers
 
 
@@ -40,11 +41,7 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
     try:
         client = BitfinexClientWrapper(api_key, api_secret)
         display = MonitorDisplay(symbol, levels, api_key)
-        display.client = client  # Pass client for order fetching
-        display.add_event("Starting market monitor...", "SYS")
-        display.add_debug_event(
-            f"Terminal size: {display.terminal_width}x{display.terminal_height} (cols x rows)"
-        )
+        display.client = client
 
         # Set up WebSocket handlers
         handlers = MonitorWebSocketHandlers(display, symbol)
@@ -53,13 +50,10 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
         wss = client.wss
         handlers.setup_websocket_handlers(wss)
 
-        display.add_event("Initializing WebSocket connection...", "CONN")
-
         # Set up graceful shutdown
         shutdown_event = asyncio.Event()
 
         def signal_handler(_signum: int, _frame: Any) -> None:
-            print("\n🛑 Shutdown signal received...")
             shutdown_event.set()
 
         signal.signal(signal.SIGINT, signal_handler)
@@ -68,42 +62,31 @@ async def monitor_command(symbol: str = DEFAULT_SYMBOL, levels: int = 40) -> Non
         # Start WebSocket connection in background
         websocket_task = asyncio.create_task(wss.start())
 
+        # Create Rich UI
+        ui = MonitorUI(display)
+
         try:
-            # Main display loop
-            while not shutdown_event.is_set():
-                display.render_display()
+            with ui.start() as live:
+                while not shutdown_event.is_set():
+                    ui.refresh()
 
-                # Check if websocket is still running
-                if websocket_task.done():
-                    exception = websocket_task.exception()
-                    if exception:
-                        display.add_event(f"WebSocket error: {exception}", "ERR")
-                    else:
-                        display.add_event("WebSocket connection closed", "DISC")
-                    break
+                    if websocket_task.done():
+                        break
 
-                # Short sleep to prevent excessive CPU usage while keeping display responsive
-                await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.1)
 
         except KeyboardInterrupt:
-            display.add_event("Keyboard interrupt received", "SYS")
-        except Exception as e:
-            display.add_event(f"Monitor error: {e}", "ERR")
+            pass
         finally:
-            # Cleanup
-            display.add_event("Shutting down monitor...", "SYS")
-
-            # Cancel the websocket task
             if "websocket_task" in locals() and not websocket_task.done():
                 websocket_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await websocket_task
 
-            # Close WebSocket connection
             if "wss" in locals():
                 await wss.close()
 
-        print("\n✅ Market monitor stopped")
+        print("\n✅ Monitor stopped")
 
     except Exception as e:
         print(f"❌ Failed to initialize monitor: {e}")
